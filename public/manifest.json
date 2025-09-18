@@ -10,8 +10,9 @@
     "alarms"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "https://medium.com/*",
+    "http://medium.com/*",
+    "https://thanhlv.com/*"
   ],
   "background": {
     "service_worker": "background.js"
