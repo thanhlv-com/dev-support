@@ -40,6 +40,7 @@ declare global {
   // Feature settings interface
   interface FeatureSettings {
     mediumFreedium: boolean;
+    jsonViewer: boolean;
   }
 
   // Extension settings
@@ -57,6 +58,7 @@ declare global {
   // Feature toggle component state
   interface FeatureState {
     mediumFreedium: boolean;
+    jsonViewer: boolean;
     [featureName: string]: boolean;
   }
 }

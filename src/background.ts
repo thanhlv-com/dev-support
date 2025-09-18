@@ -43,7 +43,8 @@ class BackgroundController {
       if (details.reason === 'install') {
         // Set default settings on first install
         chrome.storage.sync.set({
-          mediumFreedium: true // Enable Medium Freedium by default
+          mediumFreedium: true, // Enable Medium Freedium by default
+          jsonViewer: true      // Enable JSON Viewer by default
         });
         console.log('✅ Default settings initialized');
       }
@@ -181,12 +182,13 @@ class BackgroundController {
 
   private async handleGetSettings(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
     try {
-      const settings = await chrome.storage.sync.get(['mediumFreedium']) as ChromeStorageResult;
+      const settings = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']) as ChromeStorageResult;
       
       sendResponse({
         success: true,
         settings: {
-          mediumFreedium: settings.mediumFreedium !== false // Default to true
+          mediumFreedium: settings.mediumFreedium !== false, // Default to true
+          jsonViewer: settings.jsonViewer !== false          // Default to true
         }
       });
     } catch (error) {

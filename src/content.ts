@@ -2,6 +2,8 @@
 
 /// <reference path="types/global.d.ts" />
 
+import { JsonViewer } from './features/json-viewer/JsonViewer';
+
 interface ContentMessage extends ChromeMessage {
   action: 'toggleFeature';
   feature: keyof FeatureState;
@@ -18,10 +20,12 @@ class DevSupportFeatures {
   private features: FeatureState;
   private floatingButton: HTMLDivElement | null = null;
   private styleElement: HTMLStyleElement | null = null;
+  private jsonViewer: JsonViewer | null = null;
 
   constructor() {
     this.features = {
-      mediumFreedium: false
+      mediumFreedium: false,
+      jsonViewer: true
     };
     
     this.init();
@@ -42,14 +46,16 @@ class DevSupportFeatures {
 
   private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium']) as ChromeStorageResult;
+      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']) as ChromeStorageResult;
       this.features.mediumFreedium = result.mediumFreedium !== false; // Default to true
+      this.features.jsonViewer = result.jsonViewer !== false; // Default to true
       
       console.log('📋 Loaded feature states:', this.features);
     } catch (error) {
       console.error('❌ Error loading feature states:', error);
       // Use defaults
       this.features.mediumFreedium = true;
+      this.features.jsonViewer = true;
     }
   }
 
@@ -84,6 +90,13 @@ class DevSupportFeatures {
       this.initMediumFreedium();
     } else {
       this.removeMediumFreedium();
+    }
+
+    // JSON Viewer feature
+    if (this.features.jsonViewer && this.isJsonPage()) {
+      this.initJsonViewer();
+    } else {
+      this.removeJsonViewer();
     }
   }
 
@@ -322,6 +335,391 @@ class DevSupportFeatures {
       // Ignore if background script not available
       console.log('Background script not available for analytics');
     }
+  }
+
+  private isJsonPage(): boolean {
+    // Check content type
+    const contentType = document.contentType || document.querySelector('meta[http-equiv="Content-Type"]')?.getAttribute('content') || '';
+    if (contentType.includes('application/json')) {
+      return true;
+    }
+
+    // Check URL patterns for API endpoints
+    const url = window.location.href;
+    const jsonUrlPatterns = [
+      /\/api\//,
+      /\.json(\?|$)/,
+      /\/rest\//,
+      /\/graphql/,
+      /\/v\d+\//
+    ];
+    
+    if (jsonUrlPatterns.some(pattern => pattern.test(url))) {
+      return true;
+    }
+
+    // Check if page content looks like JSON
+    const bodyText = document.body.textContent?.trim() || '';
+    if (bodyText.length > 0) {
+      try {
+        JSON.parse(bodyText);
+        return bodyText.startsWith('{') || bodyText.startsWith('[');
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  private initJsonViewer(): void {
+    console.log('🌟 Initializing JSON Viewer feature');
+    
+    // Remove existing viewer if any
+    this.removeJsonViewer();
+    
+    try {
+      const bodyText = document.body.textContent?.trim() || '';
+      const jsonData = JSON.parse(bodyText);
+      
+      // Add JSON viewer styles
+      this.addJsonViewerStyles();
+      
+      // Clear the existing content
+      document.body.innerHTML = '';
+      
+      // Create container for JSON viewer
+      const container = document.createElement('div');
+      container.id = 'dev-support-json-viewer';
+      document.body.appendChild(container);
+      
+      // Initialize JSON viewer
+      this.jsonViewer = new JsonViewer(container, jsonData, {
+        theme: 'dark',
+        collapsible: true,
+        searchable: true,
+        copyable: true
+      });
+      
+      console.log('✨ JSON Viewer initialized');
+    } catch (error) {
+      console.error('❌ Error initializing JSON viewer:', error);
+    }
+  }
+
+  private removeJsonViewer(): void {
+    if (this.jsonViewer) {
+      this.jsonViewer.destroy();
+      this.jsonViewer = null;
+      console.log('🗑️ Removed JSON viewer');
+    }
+    
+    const existingViewer = document.getElementById('dev-support-json-viewer');
+    if (existingViewer) {
+      existingViewer.remove();
+    }
+
+    // Remove JSON viewer styles
+    const existingStyles = document.getElementById('dev-support-json-viewer-styles');
+    if (existingStyles) {
+      existingStyles.remove();
+    }
+  }
+
+  private addJsonViewerStyles(): void {
+    // Check if styles already exist
+    if (document.getElementById('dev-support-json-viewer-styles')) {
+      return;
+    }
+    
+    const styleElement = document.createElement('style');
+    styleElement.id = 'dev-support-json-viewer-styles';
+    styleElement.textContent = this.getJsonViewerStyles();
+    
+    document.head.appendChild(styleElement);
+  }
+
+  private getJsonViewerStyles(): string {
+    return `
+      /* JSON Viewer Styles */
+      .json-viewer {
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        padding: 20px;
+        max-width: 100%;
+        overflow-x: auto;
+        min-height: 100vh;
+        box-sizing: border-box;
+      }
+
+      .json-viewer--dark {
+        background-color: #1a1a1a;
+        color: #e1e1e1;
+      }
+
+      .json-viewer--light {
+        background-color: #ffffff;
+        color: #333333;
+      }
+
+      .json-viewer__toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid;
+        flex-wrap: wrap;
+      }
+
+      .json-viewer--dark .json-viewer__toolbar {
+        border-bottom-color: #333;
+      }
+
+      .json-viewer--light .json-viewer__toolbar {
+        border-bottom-color: #e1e1e1;
+      }
+
+      .json-viewer__search {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      .json-viewer__search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid;
+        border-radius: 6px;
+        font-size: 14px;
+        background: transparent;
+        color: inherit;
+      }
+
+      .json-viewer--dark .json-viewer__search-input {
+        border-color: #444;
+        background-color: #2a2a2a;
+      }
+
+      .json-viewer--light .json-viewer__search-input {
+        border-color: #ddd;
+        background-color: #f8f9fa;
+      }
+
+      .json-viewer__search-input:focus {
+        outline: none;
+        border-color: #007acc;
+        box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+      }
+
+      .json-viewer__copy-btn,
+      .json-viewer__expand-btn,
+      .json-viewer__collapse-btn {
+        padding: 8px 12px;
+        border: 1px solid;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .json-viewer--dark .json-viewer__copy-btn,
+      .json-viewer--dark .json-viewer__expand-btn,
+      .json-viewer--dark .json-viewer__collapse-btn {
+        border-color: #444;
+      }
+
+      .json-viewer--light .json-viewer__copy-btn,
+      .json-viewer--light .json-viewer__expand-btn,
+      .json-viewer--light .json-viewer__collapse-btn {
+        border-color: #ddd;
+      }
+
+      .json-viewer__copy-btn:hover,
+      .json-viewer__expand-btn:hover,
+      .json-viewer__collapse-btn:hover {
+        background-color: rgba(0, 122, 204, 0.1);
+        border-color: #007acc;
+      }
+
+      .json-viewer__content {
+        position: relative;
+      }
+
+      .json-viewer__node {
+        margin: 0;
+        position: relative;
+      }
+
+      .json-viewer__node-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        padding: 2px 0;
+        border-radius: 3px;
+        transition: background-color 0.15s ease;
+      }
+
+      .json-viewer__node-header:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+
+      .json-viewer--light .json-viewer__node-header:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+
+      .json-viewer__toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        color: #888;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.15s ease;
+      }
+
+      .json-viewer__toggle:hover {
+        color: #007acc;
+      }
+
+      .json-viewer__key {
+        color: #9cdcfe;
+        font-weight: 500;
+      }
+
+      .json-viewer--light .json-viewer__key {
+        color: #0451a5;
+      }
+
+      .json-viewer__value {
+        font-weight: 400;
+      }
+
+      .json-viewer__value--string {
+        color: #ce9178;
+      }
+
+      .json-viewer--light .json-viewer__value--string {
+        color: #a31515;
+      }
+
+      .json-viewer__value--number {
+        color: #b5cea8;
+      }
+
+      .json-viewer--light .json-viewer__value--number {
+        color: #098658;
+      }
+
+      .json-viewer__value--boolean {
+        color: #569cd6;
+      }
+
+      .json-viewer--light .json-viewer__value--boolean {
+        color: #0000ff;
+      }
+
+      .json-viewer__value--null {
+        color: #569cd6;
+        font-style: italic;
+      }
+
+      .json-viewer--light .json-viewer__value--null {
+        color: #0000ff;
+      }
+
+      .json-viewer__type-info {
+        color: #888;
+        font-size: 12px;
+        font-style: italic;
+      }
+
+      .json-viewer__node-content {
+        margin-left: 20px;
+        position: relative;
+      }
+
+      .json-viewer__node-content::before {
+        content: '';
+        position: absolute;
+        left: -10px;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: #333;
+      }
+
+      .json-viewer--light .json-viewer__node-content::before {
+        background-color: #e1e1e1;
+      }
+
+      .json-viewer__simple-node {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 0;
+      }
+
+      .json-viewer__highlighted {
+        background-color: #ffd700;
+        color: #000;
+        padding: 1px 2px;
+        border-radius: 2px;
+        font-weight: 600;
+      }
+
+      .json-viewer__error {
+        color: #f85552;
+        background-color: rgba(248, 85, 82, 0.1);
+        padding: 12px;
+        border-radius: 6px;
+        border-left: 4px solid #f85552;
+        font-family: inherit;
+      }
+
+      @media (max-width: 768px) {
+        .json-viewer {
+          padding: 12px;
+          font-size: 13px;
+        }
+        
+        .json-viewer__toolbar {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        
+        .json-viewer__search {
+          min-width: unset;
+        }
+        
+        .json-viewer__node-content {
+          margin-left: 16px;
+        }
+      }
+
+      .json-viewer__node-content {
+        animation: jsonFadeIn 0.2s ease-out;
+      }
+
+      @keyframes jsonFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `;
   }
 }
 

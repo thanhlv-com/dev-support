@@ -1,0 +1,368 @@
+/* JSON Viewer Styles */
+.json-viewer {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 20px;
+  max-width: 100%;
+  overflow-x: auto;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Dark Theme */
+.json-viewer--dark {
+  background-color: #1a1a1a;
+  color: #e1e1e1;
+}
+
+/* Light Theme */
+.json-viewer--light {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+/* Toolbar */
+.json-viewer__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid;
+  flex-wrap: wrap;
+}
+
+.json-viewer--dark .json-viewer__toolbar {
+  border-bottom-color: #333;
+}
+
+.json-viewer--light .json-viewer__toolbar {
+  border-bottom-color: #e1e1e1;
+}
+
+/* Search */
+.json-viewer__search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.json-viewer__search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 14px;
+  background: transparent;
+  color: inherit;
+}
+
+.json-viewer--dark .json-viewer__search-input {
+  border-color: #444;
+  background-color: #2a2a2a;
+}
+
+.json-viewer--light .json-viewer__search-input {
+  border-color: #ddd;
+  background-color: #f8f9fa;
+}
+
+.json-viewer__search-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+/* Buttons */
+.json-viewer__copy-btn,
+.json-viewer__expand-btn,
+.json-viewer__collapse-btn {
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.json-viewer--dark .json-viewer__copy-btn,
+.json-viewer--dark .json-viewer__expand-btn,
+.json-viewer--dark .json-viewer__collapse-btn {
+  border-color: #444;
+}
+
+.json-viewer--light .json-viewer__copy-btn,
+.json-viewer--light .json-viewer__expand-btn,
+.json-viewer--light .json-viewer__collapse-btn {
+  border-color: #ddd;
+}
+
+.json-viewer__copy-btn:hover,
+.json-viewer__expand-btn:hover,
+.json-viewer__collapse-btn:hover {
+  background-color: rgba(0, 122, 204, 0.1);
+  border-color: #007acc;
+}
+
+/* Content */
+.json-viewer__content {
+  position: relative;
+}
+
+/* Node */
+.json-viewer__node {
+  margin: 0;
+  position: relative;
+}
+
+.json-viewer__node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px 0;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+}
+
+.json-viewer__node-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.json-viewer--light .json-viewer__node-header:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Toggle */
+.json-viewer__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  color: #888;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.json-viewer__toggle:hover {
+  color: #007acc;
+}
+
+.json-viewer__toggle--expanded {
+  transform: rotate(0deg);
+}
+
+/* Keys */
+.json-viewer__key {
+  color: #9cdcfe;
+  font-weight: 500;
+}
+
+.json-viewer--light .json-viewer__key {
+  color: #0451a5;
+}
+
+/* Values */
+.json-viewer__value {
+  font-weight: 400;
+}
+
+.json-viewer__value--string {
+  color: #ce9178;
+}
+
+.json-viewer--light .json-viewer__value--string {
+  color: #a31515;
+}
+
+.json-viewer__value--number {
+  color: #b5cea8;
+}
+
+.json-viewer--light .json-viewer__value--number {
+  color: #098658;
+}
+
+.json-viewer__value--boolean {
+  color: #569cd6;
+}
+
+.json-viewer--light .json-viewer__value--boolean {
+  color: #0000ff;
+}
+
+.json-viewer__value--null {
+  color: #569cd6;
+  font-style: italic;
+}
+
+.json-viewer--light .json-viewer__value--null {
+  color: #0000ff;
+}
+
+/* Type Info */
+.json-viewer__type-info {
+  color: #888;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Node Content */
+.json-viewer__node-content {
+  margin-left: 20px;
+  position: relative;
+}
+
+.json-viewer__node-content::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #333;
+}
+
+.json-viewer--light .json-viewer__node-content::before {
+  background-color: #e1e1e1;
+}
+
+/* Simple Node */
+.json-viewer__simple-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+/* Search Highlighting */
+.json-viewer__highlighted {
+  background-color: #ffd700;
+  color: #000;
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* Error */
+.json-viewer__error {
+  color: #f85552;
+  background-color: rgba(248, 85, 82, 0.1);
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #f85552;
+  font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .json-viewer {
+    padding: 12px;
+    font-size: 13px;
+  }
+  
+  .json-viewer__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .json-viewer__search {
+    min-width: unset;
+  }
+  
+  .json-viewer__node-content {
+    margin-left: 16px;
+  }
+}
+
+/* Animation for collapsing/expanding */
+.json-viewer__node-content {
+  animation: jsonFadeIn 0.2s ease-out;
+}
+
+@keyframes jsonFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Print styles */
+@media print {
+  .json-viewer__toolbar {
+    display: none;
+  }
+  
+  .json-viewer {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .json-viewer__key {
+    color: #000080 !important;
+  }
+  
+  .json-viewer__value--string {
+    color: #800000 !important;
+  }
+  
+  .json-viewer__value--number {
+    color: #008000 !important;
+  }
+}
+
+/* Accessibility */
+.json-viewer__toggle:focus {
+  outline: 2px solid #007acc;
+  outline-offset: 2px;
+}
+
+.json-viewer__search-input:focus {
+  outline: 2px solid #007acc;
+  outline-offset: 2px;
+}
+
+.json-viewer__copy-btn:focus,
+.json-viewer__expand-btn:focus,
+.json-viewer__collapse-btn:focus {
+  outline: 2px solid #007acc;
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling for webkit browsers */
+.json-viewer::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.json-viewer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.json-viewer::-webkit-scrollbar-thumb {
+  background-color: #444;
+  border-radius: 4px;
+}
+
+.json-viewer--light::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+}
+
+.json-viewer::-webkit-scrollbar-thumb:hover {
+  background-color: #666;
+}
+
+.json-viewer--light::-webkit-scrollbar-thumb:hover {
+  background-color: #999;
+}
