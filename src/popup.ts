@@ -5,6 +5,7 @@
 interface FeatureToggleElements {
   mediumFreedium: HTMLInputElement | null;
   jsonViewer: HTMLInputElement | null;
+  historyDeletion: HTMLInputElement | null;
 }
 
 interface StatusElements {
@@ -12,20 +13,46 @@ interface StatusElements {
   activeCount: HTMLElement | null;
 }
 
+interface HistoryConfigElements {
+  historyConfig: HTMLElement | null;
+  retentionDays: HTMLInputElement | null;
+  deletionInterval: HTMLSelectElement | null;
+  deleteOnStartup: HTMLInputElement | null;
+  excludePatterns: HTMLTextAreaElement | null;
+  saveHistoryConfig: HTMLButtonElement | null;
+  deleteNow: HTMLButtonElement | null;
+  totalHistoryItems: HTMLElement | null;
+  recentHistoryItems: HTMLElement | null;
+}
+
 class PopupController {
   private featureToggles: FeatureToggleElements;
   private statusElements: StatusElements;
+  private historyConfigElements: HistoryConfigElements;
   private currentTab: chrome.tabs.Tab | null = null;
 
   constructor() {
     this.featureToggles = {
       mediumFreedium: null,
-      jsonViewer: null
+      jsonViewer: null,
+      historyDeletion: null
     };
     
     this.statusElements = {
       currentUrl: null,
       activeCount: null
+    };
+    
+    this.historyConfigElements = {
+      historyConfig: null,
+      retentionDays: null,
+      deletionInterval: null,
+      deleteOnStartup: null,
+      excludePatterns: null,
+      saveHistoryConfig: null,
+      deleteNow: null,
+      totalHistoryItems: null,
+      recentHistoryItems: null
     };
     
     this.init();
@@ -37,17 +64,31 @@ class PopupController {
     await this.loadFeatureStates();
     this.setupEventListeners();
     this.setupScreenCaptureListeners();
+    this.setupHistoryConfigListeners();
     await this.updateActiveCount();
+    await this.loadHistoryStats();
   }
 
   private async initializeElements(): Promise<void> {
     // Get feature toggle elements
     this.featureToggles.mediumFreedium = document.getElementById('mediumFreedium') as HTMLInputElement;
     this.featureToggles.jsonViewer = document.getElementById('jsonViewer') as HTMLInputElement;
+    this.featureToggles.historyDeletion = document.getElementById('historyDeletion') as HTMLInputElement;
     
     // Get status elements
     this.statusElements.currentUrl = document.getElementById('currentUrl');
     this.statusElements.activeCount = document.getElementById('activeCount');
+    
+    // Get history config elements
+    this.historyConfigElements.historyConfig = document.getElementById('historyConfig');
+    this.historyConfigElements.retentionDays = document.getElementById('retentionDays') as HTMLInputElement;
+    this.historyConfigElements.deletionInterval = document.getElementById('deletionInterval') as HTMLSelectElement;
+    this.historyConfigElements.deleteOnStartup = document.getElementById('deleteOnStartup') as HTMLInputElement;
+    this.historyConfigElements.excludePatterns = document.getElementById('excludePatterns') as HTMLTextAreaElement;
+    this.historyConfigElements.saveHistoryConfig = document.getElementById('saveHistoryConfig') as HTMLButtonElement;
+    this.historyConfigElements.deleteNow = document.getElementById('deleteNow') as HTMLButtonElement;
+    this.historyConfigElements.totalHistoryItems = document.getElementById('totalHistoryItems');
+    this.historyConfigElements.recentHistoryItems = document.getElementById('recentHistoryItems');
   }
 
   private async loadCurrentTab(): Promise<void> {
@@ -79,7 +120,7 @@ class PopupController {
 
   private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']);
+      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer', 'historyDeletion']);
       
       // Set toggle states based on saved preferences
       if (this.featureToggles.mediumFreedium) {
@@ -87,6 +128,19 @@ class PopupController {
       }
       if (this.featureToggles.jsonViewer) {
         this.featureToggles.jsonViewer.checked = result.jsonViewer !== false; // Default to true
+      }
+      if (this.featureToggles.historyDeletion) {
+        const historyConfig: HistoryDeletionConfig = result.historyDeletion || {
+          enabled: false,
+          interval: 'weekly',
+          retentionDays: 30,
+          deleteOnStartup: false,
+          excludePatterns: []
+        };
+        
+        this.featureToggles.historyDeletion.checked = historyConfig.enabled;
+        this.loadHistoryConfig(historyConfig);
+        this.toggleHistoryConfig(historyConfig.enabled);
       }
     } catch (error) {
       console.error('Error loading feature states:', error);
@@ -105,6 +159,13 @@ class PopupController {
     if (this.featureToggles.jsonViewer) {
       this.featureToggles.jsonViewer.addEventListener('change', (e) => {
         this.handleFeatureToggle('jsonViewer', e);
+      });
+    }
+    
+    // History Deletion toggle
+    if (this.featureToggles.historyDeletion) {
+      this.featureToggles.historyDeletion.addEventListener('change', (e) => {
+        this.handleHistoryDeletionToggle(e);
       });
     }
   }
@@ -164,11 +225,12 @@ class PopupController {
 
   private async updateActiveCount(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']);
+      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer', 'historyDeletion']);
       
       let count = 0;
       if (result.mediumFreedium !== false) count++; // Default to true
       if (result.jsonViewer !== false) count++;     // Default to true
+      if (result.historyDeletion?.enabled) count++;
       
       if (this.statusElements.activeCount) {
         this.statusElements.activeCount.textContent = count.toString();
@@ -295,6 +357,203 @@ class PopupController {
     }
     if (captureVisibleBtn) {
       captureVisibleBtn.disabled = !enabled;
+    }
+  }
+
+  private setupHistoryConfigListeners(): void {
+    // Save history config button
+    if (this.historyConfigElements.saveHistoryConfig) {
+      this.historyConfigElements.saveHistoryConfig.addEventListener('click', () => {
+        this.handleSaveHistoryConfig();
+      });
+    }
+    
+    // Delete now button
+    if (this.historyConfigElements.deleteNow) {
+      this.historyConfigElements.deleteNow.addEventListener('click', () => {
+        this.handleDeleteNow();
+      });
+    }
+  }
+
+  private async handleHistoryDeletionToggle(event: Event): Promise<void> {
+    const target = event.target as HTMLInputElement;
+    const enabled = target.checked;
+    
+    this.toggleHistoryConfig(enabled);
+    
+    if (enabled) {
+      // Save the enabled state immediately
+      const currentConfig = this.getCurrentHistoryConfig();
+      currentConfig.enabled = true;
+      await this.saveHistoryConfig(currentConfig);
+    } else {
+      // Disable history deletion
+      const currentConfig = this.getCurrentHistoryConfig();
+      currentConfig.enabled = false;
+      await this.saveHistoryConfig(currentConfig);
+    }
+    
+    await this.updateActiveCount();
+  }
+
+  private toggleHistoryConfig(show: boolean): void {
+    if (this.historyConfigElements.historyConfig) {
+      this.historyConfigElements.historyConfig.style.display = show ? 'block' : 'none';
+    }
+  }
+
+  private loadHistoryConfig(config: HistoryDeletionConfig): void {
+    if (this.historyConfigElements.retentionDays) {
+      this.historyConfigElements.retentionDays.value = config.retentionDays.toString();
+    }
+    if (this.historyConfigElements.deletionInterval) {
+      this.historyConfigElements.deletionInterval.value = config.interval;
+    }
+    if (this.historyConfigElements.deleteOnStartup) {
+      this.historyConfigElements.deleteOnStartup.checked = config.deleteOnStartup;
+    }
+    if (this.historyConfigElements.excludePatterns) {
+      this.historyConfigElements.excludePatterns.value = config.excludePatterns.join('\n');
+    }
+  }
+
+  private getCurrentHistoryConfig(): HistoryDeletionConfig {
+    return {
+      enabled: this.featureToggles.historyDeletion?.checked || false,
+      retentionDays: parseInt(this.historyConfigElements.retentionDays?.value || '30'),
+      interval: (this.historyConfigElements.deletionInterval?.value as 'daily' | 'weekly' | 'monthly') || 'weekly',
+      deleteOnStartup: this.historyConfigElements.deleteOnStartup?.checked || false,
+      excludePatterns: this.historyConfigElements.excludePatterns?.value.split('\n').filter(p => p.trim()) || []
+    };
+  }
+
+  private async handleSaveHistoryConfig(): Promise<void> {
+    try {
+      const config = this.getCurrentHistoryConfig();
+      await this.saveHistoryConfig(config);
+      
+      // Show success feedback
+      this.showConfigFeedback('Settings saved successfully!', 'success');
+      await this.updateActiveCount();
+    } catch (error) {
+      console.error('Error saving history config:', error);
+      this.showConfigFeedback('Failed to save settings', 'error');
+    }
+  }
+
+  private async saveHistoryConfig(config: HistoryDeletionConfig): Promise<void> {
+    // Send to background script to handle alarms
+    const response = await chrome.runtime.sendMessage({
+      action: 'deleteHistory',
+      historyConfig: config
+    });
+    
+    if (!response.success) {
+      throw new Error(response.error || 'Failed to save configuration');
+    }
+  }
+
+  private async handleDeleteNow(): Promise<void> {
+    try {
+      const config = this.getCurrentHistoryConfig();
+      
+      if (config.retentionDays <= 0) {
+        this.showConfigFeedback('Please set a valid retention period', 'error');
+        return;
+      }
+      
+      // Disable button during deletion
+      if (this.historyConfigElements.deleteNow) {
+        this.historyConfigElements.deleteNow.disabled = true;
+        this.historyConfigElements.deleteNow.textContent = 'Deleting...';
+      }
+      
+      this.showConfigFeedback('Deleting old history...', 'loading');
+      
+      // Send delete request
+      const response = await chrome.runtime.sendMessage({
+        action: 'deleteHistoryNow',
+        historyConfig: config
+      });
+      
+      if (response.success) {
+        const { deletedCount, skippedCount } = response.data || { deletedCount: 0, skippedCount: 0 };
+        this.showConfigFeedback(`History deleted! ${deletedCount} items removed, ${skippedCount} skipped.`, 'success');
+        await this.loadHistoryStats(); // Refresh stats
+      } else {
+        this.showConfigFeedback(response.error || 'Failed to delete history', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting history:', error);
+      this.showConfigFeedback('Failed to delete history', 'error');
+    } finally {
+      // Re-enable button
+      if (this.historyConfigElements.deleteNow) {
+        this.historyConfigElements.deleteNow.disabled = false;
+        this.historyConfigElements.deleteNow.textContent = 'Delete Old History Now';
+      }
+    }
+  }
+
+  private async loadHistoryStats(): Promise<void> {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'getHistoryStats'
+      });
+      
+      if (response.success) {
+        if (this.historyConfigElements.totalHistoryItems) {
+          this.historyConfigElements.totalHistoryItems.textContent = response.data.totalItems.toString();
+        }
+        if (this.historyConfigElements.recentHistoryItems) {
+          this.historyConfigElements.recentHistoryItems.textContent = response.data.recentItems.toString();
+        }
+      } else {
+        if (this.historyConfigElements.totalHistoryItems) {
+          this.historyConfigElements.totalHistoryItems.textContent = 'Error';
+        }
+        if (this.historyConfigElements.recentHistoryItems) {
+          this.historyConfigElements.recentHistoryItems.textContent = 'Error';
+        }
+      }
+    } catch (error) {
+      console.error('Error loading history stats:', error);
+      if (this.historyConfigElements.totalHistoryItems) {
+        this.historyConfigElements.totalHistoryItems.textContent = 'Error';
+      }
+      if (this.historyConfigElements.recentHistoryItems) {
+        this.historyConfigElements.recentHistoryItems.textContent = 'Error';
+      }
+    }
+  }
+
+  private showConfigFeedback(message: string, type: 'success' | 'error' | 'loading'): void {
+    // Create or update feedback element
+    let feedbackElement = document.getElementById('configFeedback');
+    
+    if (!feedbackElement) {
+      feedbackElement = document.createElement('div');
+      feedbackElement.id = 'configFeedback';
+      feedbackElement.className = 'config-feedback';
+      
+      const configActions = document.querySelector('.config-actions');
+      if (configActions) {
+        configActions.appendChild(feedbackElement);
+      }
+    }
+    
+    feedbackElement.textContent = message;
+    feedbackElement.className = `config-feedback config-feedback--${type}`;
+    feedbackElement.style.display = 'block';
+    
+    // Auto-hide after 3 seconds for success/error messages
+    if (type !== 'loading') {
+      setTimeout(() => {
+        if (feedbackElement) {
+          feedbackElement.style.display = 'none';
+        }
+      }, 3000);
     }
   }
 }

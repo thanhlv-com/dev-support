@@ -55,16 +55,65 @@
           </div>
         </div>
         
-        <!-- Placeholder for future features -->
-        <div class="feature-toggle disabled">
-          <div class="feature-info">
-            <h3>🔮 Future Feature</h3>
-            <p class="feature-description">More awesome features coming soon...</p>
+        <!-- History Deletion Section -->
+        <div class="feature-section">
+          <h2>🗑️ History Management</h2>
+          
+          <div class="feature-toggle">
+            <div class="feature-info">
+              <h3>🕐 Automatic History Deletion</h3>
+              <p class="feature-description">Automatically delete browser history older than specified days</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="historyDeletion" class="feature-checkbox">
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" disabled>
-            <span class="slider"></span>
-          </label>
+          
+          <div id="historyConfig" class="history-config" style="display: none;">
+            <div class="config-row">
+              <label for="retentionDays">Keep history for (days):</label>
+              <input type="number" id="retentionDays" min="1" max="365" value="30" class="config-input">
+            </div>
+            
+            <div class="config-row">
+              <label for="deletionInterval">Check interval:</label>
+              <select id="deletionInterval" class="config-select">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            
+            <div class="config-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="deleteOnStartup">
+                <span>Delete on extension startup</span>
+              </label>
+            </div>
+            
+            <div class="config-row">
+              <label for="excludePatterns">Exclude URLs (one per line):</label>
+              <textarea id="excludePatterns" class="config-textarea" placeholder="google.com*&#10;github.com*&#10;stackoverflow.com*" rows="3"></textarea>
+              <small class="config-help">Use * as wildcard. Example: *.google.com</small>
+            </div>
+            
+            <div class="config-actions">
+              <button id="saveHistoryConfig" class="config-btn config-btn--primary">Save Settings</button>
+              <button id="deleteNow" class="config-btn config-btn--danger">Delete Old History Now</button>
+            </div>
+            
+            <div id="historyStats" class="history-stats">
+              <div class="stats-item">
+                <span class="stats-label">Total History Items:</span>
+                <span id="totalHistoryItems" class="stats-value">Loading...</span>
+              </div>
+              <div class="stats-item">
+                <span class="stats-label">Recent Items (30 days):</span>
+                <span id="recentHistoryItems" class="stats-value">Loading...</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       

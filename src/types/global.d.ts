@@ -37,10 +37,20 @@ declare global {
     userAgent: string;
   }
 
+  // History deletion configuration
+  interface HistoryDeletionConfig {
+    enabled: boolean;
+    interval: 'daily' | 'weekly' | 'monthly';
+    retentionDays: number;
+    deleteOnStartup: boolean;
+    excludePatterns: string[];
+  }
+
   // Feature settings interface
   interface FeatureSettings {
     mediumFreedium: boolean;
     jsonViewer: boolean;
+    historyDeletion: HistoryDeletionConfig;
   }
 
   // Extension settings

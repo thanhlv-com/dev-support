@@ -11,7 +11,8 @@
     "tabs",
     "desktopCapture",
     "scripting",
-    "downloads"
+    "downloads",
+    "history"
   ],
   "host_permissions": [
     "https://medium.com/*",

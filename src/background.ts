@@ -3,11 +3,12 @@
 /// <reference path="types/global.d.ts" />
 
 interface BackgroundMessage extends ChromeMessage {
-  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen';
+  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats';
   event?: string;
   data?: any;
   settings?: ExtensionSettings;
   options?: any;
+  historyConfig?: HistoryDeletionConfig;
 }
 
 interface BackgroundResponse {
@@ -15,6 +16,7 @@ interface BackgroundResponse {
   settings?: ExtensionSettings;
   dataUrl?: string;
   filename?: string;
+  data?: any;
   error?: string;
 }
 
@@ -36,6 +38,9 @@ class BackgroundController {
     // Create periodic cleanup alarm (every 6 hours)
     chrome.alarms.create('cleanup', { periodInMinutes: 360 });
     
+    // Create history deletion alarms
+    this.setupHistoryDeletionAlarms();
+    
     console.log('✅ Dev Support Extension background script initialized');
   }
 
@@ -45,9 +50,18 @@ class BackgroundController {
       
       if (details.reason === 'install') {
         // Set default settings on first install
+        const defaultHistoryConfig: HistoryDeletionConfig = {
+          enabled: false,
+          interval: 'weekly',
+          retentionDays: 30,
+          deleteOnStartup: false,
+          excludePatterns: []
+        };
+        
         chrome.storage.sync.set({
           mediumFreedium: true, // Enable Medium Freedium by default
-          jsonViewer: true      // Enable JSON Viewer by default
+          jsonViewer: true,     // Enable JSON Viewer by default
+          historyDeletion: defaultHistoryConfig
         });
         console.log('✅ Default settings initialized');
       }
@@ -83,6 +97,24 @@ class BackgroundController {
           
         case 'captureScreen':
           this.handleScreenCapture(message.options || {}, sendResponse, sender);
+          return true; // Keep message channel open for async response
+          
+        case 'deleteHistory':
+          if (message.historyConfig) {
+            this.handleHistoryDeletion(message.historyConfig, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+          
+        case 'deleteHistoryNow':
+          if (message.historyConfig) {
+            this.handleDeleteHistoryNow(message.historyConfig, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+          
+        case 'getHistoryStats':
+          this.handleGetHistoryStats(sendResponse);
           return true; // Keep message channel open for async response
       }
     });
@@ -122,6 +154,9 @@ class BackgroundController {
       switch (alarm.name) {
         case 'cleanup':
           this.performCleanup();
+          break;
+        case 'historyDeletion':
+          this.performScheduledHistoryDeletion();
           break;
       }
     });
@@ -189,13 +224,22 @@ class BackgroundController {
 
   private async handleGetSettings(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
     try {
-      const settings = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']) as ChromeStorageResult;
+      const settings = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer', 'historyDeletion']) as ChromeStorageResult;
+      
+      const defaultHistoryConfig: HistoryDeletionConfig = {
+        enabled: false,
+        interval: 'weekly',
+        retentionDays: 30,
+        deleteOnStartup: false,
+        excludePatterns: []
+      };
       
       sendResponse({
         success: true,
         settings: {
           mediumFreedium: settings.mediumFreedium !== false, // Default to true
-          jsonViewer: settings.jsonViewer !== false          // Default to true
+          jsonViewer: settings.jsonViewer !== false,          // Default to true
+          historyDeletion: settings.historyDeletion || defaultHistoryConfig
         }
       });
     } catch (error) {
@@ -477,6 +521,267 @@ class BackgroundController {
 
   private isMediumUrl(url: string): boolean {
     return url.includes('medium.com') || url.includes('towardsdatascience.com');
+  }
+
+  private async setupHistoryDeletionAlarms(): Promise<void> {
+    try {
+      const settings = await chrome.storage.sync.get(['historyDeletion']) as ChromeStorageResult;
+      const historyConfig: HistoryDeletionConfig = settings.historyDeletion;
+      
+      if (historyConfig?.enabled) {
+        // Clear existing history deletion alarm
+        chrome.alarms.clear('historyDeletion');
+        
+        // Calculate minutes based on interval
+        let periodInMinutes: number;
+        switch (historyConfig.interval) {
+          case 'daily':
+            periodInMinutes = 24 * 60; // 1440 minutes
+            break;
+          case 'weekly':
+            periodInMinutes = 7 * 24 * 60; // 10080 minutes
+            break;
+          case 'monthly':
+            periodInMinutes = 30 * 24 * 60; // 43200 minutes
+            break;
+          default:
+            periodInMinutes = 7 * 24 * 60; // Default to weekly
+        }
+        
+        chrome.alarms.create('historyDeletion', { periodInMinutes });
+        console.log(`🗓️ History deletion alarm set for ${historyConfig.interval} (${periodInMinutes} minutes)`);
+        
+        // If deleteOnStartup is enabled, perform deletion now
+        if (historyConfig.deleteOnStartup) {
+          this.performScheduledHistoryDeletion();
+        }
+      } else {
+        // Clear the alarm if history deletion is disabled
+        chrome.alarms.clear('historyDeletion');
+      }
+    } catch (error) {
+      console.error('❌ Error setting up history deletion alarms:', error);
+    }
+  }
+
+  private async performScheduledHistoryDeletion(): Promise<void> {
+    try {
+      const settings = await chrome.storage.sync.get(['historyDeletion']) as ChromeStorageResult;
+      const historyConfig: HistoryDeletionConfig = settings.historyDeletion;
+      
+      if (!historyConfig?.enabled) {
+        console.log('📋 History deletion is disabled, skipping scheduled deletion');
+        return;
+      }
+      
+      console.log('🗑️ Performing scheduled history deletion...');
+      
+      const cutoffTime = Date.now() - (historyConfig.retentionDays * 24 * 60 * 60 * 1000);
+      
+      // Get history items to delete
+      const historyItems = await chrome.history.search({
+        text: '',
+        startTime: 0,
+        endTime: cutoffTime,
+        maxResults: 10000
+      });
+      
+      console.log(`📊 Found ${historyItems.length} history items older than ${historyConfig.retentionDays} days for scheduled deletion`);
+      
+      let deletedCount = 0;
+      let skippedCount = 0;
+      
+      for (const item of historyItems) {
+        if (item.url && this.shouldDeleteHistoryItem(item.url, historyConfig.excludePatterns)) {
+          try {
+            await chrome.history.deleteUrl({ url: item.url });
+            deletedCount++;
+            console.log(`🗑️ Scheduled deletion: ${item.url}`);
+          } catch (error) {
+            console.error('Error deleting history item:', item.url, error);
+          }
+        } else {
+          skippedCount++;
+          if (item.url) {
+            console.log(`⏭️ Scheduled skip (excluded): ${item.url}`);
+          }
+        }
+      }
+      
+      console.log(`✅ Scheduled history deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+      
+      // Track the event
+      this.handleTrackEvent('history_deletion_scheduled', {
+        deletedCount,
+        skippedCount,
+        retentionDays: historyConfig.retentionDays,
+        interval: historyConfig.interval,
+        timestamp: Date.now()
+      });
+      
+    } catch (error) {
+      console.error('❌ Error performing scheduled history deletion:', error);
+    }
+  }
+
+  private async handleHistoryDeletion(config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      // Save the new configuration
+      await chrome.storage.sync.set({ historyDeletion: config });
+      
+      // Update alarms based on new configuration
+      await this.setupHistoryDeletionAlarms();
+      
+      console.log('💾 History deletion configuration saved:', config);
+      
+      sendResponse({
+        success: true
+      });
+    } catch (error) {
+      console.error('❌ Error saving history deletion configuration:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleDeleteHistoryNow(config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      console.log('🗑️ Performing immediate history deletion with config:', config);
+      
+      // Check if we have history permission
+      if (!chrome.history) {
+        throw new Error('History API not available - missing permission');
+      }
+      
+      const cutoffTime = Date.now() - (config.retentionDays * 24 * 60 * 60 * 1000);
+      console.log(`📅 Cutoff time: ${new Date(cutoffTime).toISOString()} (${config.retentionDays} days ago)`);
+      
+      // Get history items to delete
+      const historyItems = await chrome.history.search({
+        text: '',
+        startTime: 0,
+        endTime: cutoffTime,
+        maxResults: 10000
+      });
+      
+      console.log(`📊 Found ${historyItems.length} history items older than ${config.retentionDays} days`);
+      console.log(`🔍 Exclude patterns:`, config.excludePatterns);
+      
+      if (historyItems.length === 0) {
+        console.log('ℹ️ No history items found to delete');
+        sendResponse({
+          success: true,
+          data: {
+            deletedCount: 0,
+            skippedCount: 0
+          }
+        });
+        return;
+      }
+      
+      let deletedCount = 0;
+      let skippedCount = 0;
+      
+      for (const item of historyItems) {
+        if (item.url && this.shouldDeleteHistoryItem(item.url, config.excludePatterns)) {
+          try {
+            await chrome.history.deleteUrl({ url: item.url });
+            deletedCount++;
+            console.log(`🗑️ Deleted: ${item.url}`);
+          } catch (error) {
+            console.error('Error deleting history item:', item.url, error);
+          }
+        } else {
+          skippedCount++;
+          if (item.url) {
+            console.log(`⏭️ Skipped (excluded): ${item.url}`);
+          }
+        }
+      }
+      
+      console.log(`✅ Immediate history deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+      
+      // Track the event
+      this.handleTrackEvent('history_deletion_manual', {
+        deletedCount,
+        skippedCount,
+        retentionDays: config.retentionDays,
+        timestamp: Date.now()
+      });
+      
+      sendResponse({
+        success: true,
+        data: {
+          deletedCount,
+          skippedCount
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error performing immediate history deletion:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleGetHistoryStats(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      // Get total history count (approximate)
+      const recentHistory = await chrome.history.search({
+        text: '',
+        maxResults: 10000
+      });
+      
+      // Get history from last 30 days for more detailed stats
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      const recentHistoryItems = await chrome.history.search({
+        text: '',
+        startTime: thirtyDaysAgo,
+        maxResults: 10000
+      });
+      
+      sendResponse({
+        success: true,
+        data: {
+          totalItems: recentHistory.length,
+          recentItems: recentHistoryItems.length,
+          oldestItem: recentHistory.length > 0 ? recentHistory[recentHistory.length - 1] : null
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error getting history stats:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private shouldDeleteHistoryItem(url: string, excludePatterns: string[]): boolean {
+    // Check if URL matches any exclude pattern
+    for (const pattern of excludePatterns) {
+      if (pattern.trim()) {
+        try {
+          // Convert glob-like pattern to regex
+          const regexPattern = pattern
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.');
+          const regex = new RegExp(regexPattern, 'i');
+          
+          if (regex.test(url)) {
+            return false; // Don't delete if it matches exclude pattern
+          }
+        } catch (error) {
+          console.warn('Invalid exclude pattern:', pattern, error);
+        }
+      }
+    }
+    
+    return true; // Delete by default
   }
 }
 
