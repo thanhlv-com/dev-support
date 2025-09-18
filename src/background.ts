@@ -53,7 +53,7 @@ class BackgroundController {
         const defaultHistoryConfig: HistoryDeletionConfig = {
           enabled: false,
           interval: 'weekly',
-          retentionDays: 30,
+          retentionDays: 30, // 0 = delete all, >0 = keep for N days
           deleteOnStartup: false,
           excludePatterns: []
         };
@@ -229,7 +229,7 @@ class BackgroundController {
       const defaultHistoryConfig: HistoryDeletionConfig = {
         enabled: false,
         interval: 'weekly',
-        retentionDays: 30,
+        retentionDays: 30, // 0 = delete all, >0 = keep for N days
         deleteOnStartup: false,
         excludePatterns: []
       };
@@ -576,9 +576,21 @@ class BackgroundController {
       
       console.log('🗑️ Performing scheduled history deletion...');
       
-      const cutoffTime = Date.now() - (historyConfig.retentionDays * 24 * 60 * 60 * 1000);
+      let cutoffTime: number;
+      let isDeleteAll = false;
       
-      // Get history items to delete
+      if (historyConfig.retentionDays === 0) {
+        // Delete ALL history
+        cutoffTime = Date.now();
+        isDeleteAll = true;
+        console.log('📅 [SCHEDULED] DELETE ALL MODE - deleting entire history');
+      } else {
+        // Delete history older than retention period
+        cutoffTime = Date.now() - (historyConfig.retentionDays * 24 * 60 * 60 * 1000);
+        console.log(`📅 [SCHEDULED] Deleting history older than ${historyConfig.retentionDays} days`);
+      }
+      
+      // Get history items to analyze (for counting and exclusion checking)
       const historyItems = await chrome.history.search({
         text: '',
         startTime: 0,
@@ -588,27 +600,90 @@ class BackgroundController {
       
       console.log(`📊 Found ${historyItems.length} history items older than ${historyConfig.retentionDays} days for scheduled deletion`);
       
+      if (historyItems.length === 0) {
+        console.log('ℹ️ No history items found for scheduled deletion');
+        return;
+      }
+      
       let deletedCount = 0;
       let skippedCount = 0;
       
-      for (const item of historyItems) {
-        if (item.url && this.shouldDeleteHistoryItem(item.url, historyConfig.excludePatterns)) {
-          try {
-            await chrome.history.deleteUrl({ url: item.url });
-            deletedCount++;
-            console.log(`🗑️ Scheduled deletion: ${item.url}`);
-          } catch (error) {
-            console.error('Error deleting history item:', item.url, error);
+      // Check deletion method based on mode and exclusions
+      if (isDeleteAll && historyConfig.excludePatterns.length === 0) {
+        // Delete all with no exclusions - use deleteAll()
+        console.log('🚀 [SCHEDULED] DELETE ALL MODE with no exclusions - using chrome.history.deleteAll()');
+        
+        try {
+          await chrome.history.deleteAll();
+          deletedCount = historyItems.length;
+          console.log(`✅ [SCHEDULED] All history deleted using deleteAll(): ${deletedCount} items`);
+        } catch (error) {
+          console.error('❌ [SCHEDULED] deleteAll() failed, falling back to individual deletion:', error);
+          // Fallback to individual deletion
+          for (const item of historyItems) {
+            if (item.url) {
+              try {
+                await chrome.history.deleteUrl({ url: item.url });
+                deletedCount++;
+              } catch (error) {
+                console.error('Error deleting history item:', item.url, error);
+              }
+            }
           }
-        } else {
-          skippedCount++;
-          if (item.url) {
-            console.log(`⏭️ Scheduled skip (excluded): ${item.url}`);
+        }
+      } else if (!isDeleteAll && historyConfig.excludePatterns.length === 0) {
+        // Regular deletion with no exclusions - use deleteRange()
+        console.log('🚀 [SCHEDULED] Regular deletion (no exclusions) - using deleteRange()');
+        
+        try {
+          await chrome.history.deleteRange({
+            startTime: 0,
+            endTime: cutoffTime
+          });
+          
+          deletedCount = historyItems.length;
+          console.log(`✅ [SCHEDULED] Range deletion completed: ${deletedCount} items deleted`);
+        } catch (error) {
+          console.error('❌ [SCHEDULED] Range deletion failed, falling back to individual deletion:', error);
+          // Fallback to individual deletion
+          for (const item of historyItems) {
+            if (item.url) {
+              try {
+                await chrome.history.deleteUrl({ url: item.url });
+                deletedCount++;
+              } catch (error) {
+                console.error('Error deleting history item:', item.url, error);
+              }
+            }
+          }
+        }
+      } else {
+        // Have exclusions - need individual URL deletion
+        console.log('🔄 Scheduled individual deletion (with exclusions) - clearing synced data for deleted URLs');
+        
+        for (const item of historyItems) {
+          if (item.url && this.shouldDeleteHistoryItem(item.url, historyConfig.excludePatterns)) {
+            try {
+              await chrome.history.deleteUrl({ url: item.url });
+              deletedCount++;
+              console.log(`🗑️ Scheduled deletion (including synced): ${item.url}`);
+            } catch (error) {
+              console.error('Error deleting history item:', item.url, error);
+            }
+          } else {
+            skippedCount++;
+            if (item.url) {
+              console.log(`⏭️ Scheduled skip (excluded): ${item.url}`);
+            }
           }
         }
       }
       
-      console.log(`✅ Scheduled history deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+      if (isDeleteAll) {
+        console.log(`✅ [SCHEDULED] DELETE ALL completed: ${deletedCount} deleted, ${skippedCount} skipped (all history)`);
+      } else {
+        console.log(`✅ [SCHEDULED] History deletion completed: ${deletedCount} deleted, ${skippedCount} skipped (synced data cleared)`);
+      }
       
       // Track the event
       this.handleTrackEvent('history_deletion_scheduled', {
@@ -616,6 +691,10 @@ class BackgroundController {
         skippedCount,
         retentionDays: historyConfig.retentionDays,
         interval: historyConfig.interval,
+        method: isDeleteAll ? (historyConfig.excludePatterns.length === 0 ? 'deleteAll' : 'individual_delete_all') : 
+                              (historyConfig.excludePatterns.length === 0 ? 'bulk' : 'individual'),
+        deleteAll: isDeleteAll,
+        syncCleared: true,
         timestamp: Date.now()
       });
       
@@ -648,17 +727,60 @@ class BackgroundController {
 
   private async handleDeleteHistoryNow(config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
     try {
-      console.log('🗑️ Performing immediate history deletion with config:', config);
+      console.log('🗑️ [START] Performing immediate history deletion with config:', JSON.stringify(config, null, 2));
       
-      // Check if we have history permission
+      // Extensive API availability checks
+      console.log('🔍 [CHECK] Chrome APIs available:');
+      console.log('  - chrome:', !!chrome);
+      console.log('  - chrome.history:', !!chrome.history);
+      console.log('  - chrome.history.search:', !!chrome.history?.search);
+      console.log('  - chrome.history.deleteUrl:', !!chrome.history?.deleteUrl);
+      console.log('  - chrome.history.deleteRange:', !!chrome.history?.deleteRange);
+      
       if (!chrome.history) {
-        throw new Error('History API not available - missing permission');
+        throw new Error('History API not available - missing permission or API not loaded');
       }
       
-      const cutoffTime = Date.now() - (config.retentionDays * 24 * 60 * 60 * 1000);
-      console.log(`📅 Cutoff time: ${new Date(cutoffTime).toISOString()} (${config.retentionDays} days ago)`);
+      let cutoffTime: number;
+      let isDeleteAll = false;
       
-      // Get history items to delete
+      if (config.retentionDays === 0) {
+        // Delete ALL history
+        cutoffTime = Date.now(); // Everything up to now
+        isDeleteAll = true;
+        console.log(`📅 [CONFIG] DELETE ALL MODE - deleting entire history`);
+      } else {
+        // Delete history older than retention period
+        cutoffTime = Date.now() - (config.retentionDays * 24 * 60 * 60 * 1000);
+        const cutoffDate = new Date(cutoffTime);
+        console.log(`📅 [CONFIG] Cutoff time: ${cutoffDate.toISOString()} (${config.retentionDays} days ago)`);
+      }
+      
+      console.log(`📅 [CONFIG] Current time: ${new Date().toISOString()}`);
+      console.log(`📅 [CONFIG] Time range: 0 to ${cutoffTime}`);
+      
+      // Test basic history access first
+      console.log('🧪 [TEST] Testing basic history access...');
+      try {
+        const testSearch = await chrome.history.search({
+          text: '',
+          startTime: Date.now() - (24 * 60 * 60 * 1000), // Last 24 hours
+          maxResults: 5
+        });
+        console.log(`🧪 [TEST] Basic history access works. Found ${testSearch.length} items in last 24h`);
+        console.log('🧪 [TEST] Sample items:', testSearch.slice(0, 2).map(item => ({ url: item.url, visitCount: item.visitCount })));
+      } catch (testError) {
+        console.error('🧪 [TEST] Basic history access failed:', testError);
+        throw new Error(`History API test failed: ${testError.message}`);
+      }
+      
+      // Get history items to analyze
+      if (isDeleteAll) {
+        console.log('📊 [SEARCH] DELETE ALL MODE - searching for ALL history items...');
+      } else {
+        console.log(`📊 [SEARCH] Searching for history items older than ${config.retentionDays} days...`);
+      }
+      
       const historyItems = await chrome.history.search({
         text: '',
         startTime: 0,
@@ -666,16 +788,29 @@ class BackgroundController {
         maxResults: 10000
       });
       
-      console.log(`📊 Found ${historyItems.length} history items older than ${config.retentionDays} days`);
-      console.log(`🔍 Exclude patterns:`, config.excludePatterns);
+      if (isDeleteAll) {
+        console.log(`📊 [SEARCH] Found ${historyItems.length} total history items to delete (ALL)`);
+      } else {
+        console.log(`📊 [SEARCH] Found ${historyItems.length} history items older than ${config.retentionDays} days`);
+      }
+      console.log(`🔍 [CONFIG] Exclude patterns:`, config.excludePatterns);
+      
+      // Show sample of found items
+      if (historyItems.length > 0) {
+        console.log('📋 [SAMPLE] First 5 items to potentially delete:');
+        historyItems.slice(0, 5).forEach((item, index) => {
+          console.log(`  ${index + 1}. ${item.url} (visited: ${item.visitCount} times, last: ${new Date(item.lastVisitTime || 0).toISOString()})`);
+        });
+      }
       
       if (historyItems.length === 0) {
-        console.log('ℹ️ No history items found to delete');
+        console.log('ℹ️ [RESULT] No history items found to delete');
         sendResponse({
           success: true,
           data: {
             deletedCount: 0,
-            skippedCount: 0
+            skippedCount: 0,
+            method: 'none'
           }
         });
         return;
@@ -684,30 +819,96 @@ class BackgroundController {
       let deletedCount = 0;
       let skippedCount = 0;
       
-      for (const item of historyItems) {
-        if (item.url && this.shouldDeleteHistoryItem(item.url, config.excludePatterns)) {
-          try {
-            await chrome.history.deleteUrl({ url: item.url });
-            deletedCount++;
-            console.log(`🗑️ Deleted: ${item.url}`);
-          } catch (error) {
-            console.error('Error deleting history item:', item.url, error);
-          }
-        } else {
-          skippedCount++;
-          if (item.url) {
-            console.log(`⏭️ Skipped (excluded): ${item.url}`);
-          }
+      // Special handling for delete all mode
+      if (isDeleteAll && config.excludePatterns.length === 0) {
+        console.log('🚀 [METHOD] DELETE ALL MODE with no exclusions - using chrome.history.deleteAll()');
+        
+        try {
+          await chrome.history.deleteAll();
+          deletedCount = historyItems.length;
+          console.log(`✅ [COMPLETE] All history deleted using deleteAll(): ${deletedCount} items`);
+          
+          // Track the event
+          this.handleTrackEvent('history_deletion_manual', {
+            deletedCount,
+            skippedCount: 0,
+            retentionDays: 0,
+            method: 'deleteAll',
+            deleteAll: true,
+            timestamp: Date.now()
+          });
+          
+          sendResponse({
+            success: true,
+            data: {
+              deletedCount,
+              skippedCount: 0,
+              method: 'deleteAll',
+              totalFound: historyItems.length,
+              deleteAll: true
+            }
+          });
+          return;
+        } catch (error) {
+          console.error('❌ [ERROR] deleteAll() failed, falling back to individual deletion:', error);
+          // Continue to individual deletion below
         }
       }
       
-      console.log(`✅ Immediate history deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+      // Use individual deletion for better debugging and control, or when deleteAll failed
+      if (isDeleteAll) {
+        console.log('🔄 [METHOD] DELETE ALL MODE - using individual deletion (with exclusions or as fallback)');
+      } else {
+        console.log('🔄 [METHOD] Using individual deletion for better control and debugging');
+      }
+      
+      for (const item of historyItems.slice(0, 100)) { // Limit to first 100 for testing
+        if (!item.url) {
+          console.log('⚠️ [SKIP] Item has no URL:', item);
+          skippedCount++;
+          continue;
+        }
+        
+        const shouldDelete = this.shouldDeleteHistoryItem(item.url, config.excludePatterns);
+        
+        if (isDeleteAll && config.excludePatterns.length === 0) {
+          // In delete all mode with no exclusions, delete everything
+          console.log(`🗑️ [DELETE-ALL] ${item.url} -> DELETE (all mode)`);
+        } else {
+          console.log(`🤔 [DECIDE] ${item.url} -> ${shouldDelete ? 'DELETE' : 'SKIP'}`);
+        }
+        
+        if (shouldDelete || (isDeleteAll && config.excludePatterns.length === 0)) {
+          try {
+            console.log(`🗑️ [DELETE] Attempting to delete: ${item.url}`);
+            await chrome.history.deleteUrl({ url: item.url });
+            deletedCount++;
+            console.log(`✅ [SUCCESS] Deleted: ${item.url}`);
+            
+            // Add a small delay to avoid overwhelming the API
+            await new Promise(resolve => setTimeout(resolve, 10));
+          } catch (error) {
+            console.error(`❌ [ERROR] Failed to delete ${item.url}:`, error);
+          }
+        } else {
+          skippedCount++;
+          console.log(`⏭️ [SKIP] Excluded: ${item.url}`);
+        }
+      }
+      
+      if (isDeleteAll) {
+        console.log(`✅ [COMPLETE] DELETE ALL completed: ${deletedCount} deleted, ${skippedCount} skipped (all history)`);
+      } else {
+        console.log(`✅ [COMPLETE] History deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+      }
       
       // Track the event
       this.handleTrackEvent('history_deletion_manual', {
         deletedCount,
         skippedCount,
         retentionDays: config.retentionDays,
+        method: isDeleteAll ? 'individual_delete_all' : 'individual_debug',
+        deleteAll: isDeleteAll,
         timestamp: Date.now()
       });
       
@@ -715,17 +916,55 @@ class BackgroundController {
         success: true,
         data: {
           deletedCount,
-          skippedCount
+          skippedCount,
+          method: isDeleteAll ? 'individual_delete_all' : 'individual_debug',
+          totalFound: historyItems.length,
+          deleteAll: isDeleteAll
         }
       });
       
     } catch (error) {
-      console.error('❌ Error performing immediate history deletion:', error);
+      console.error('❌ [FATAL] Error performing immediate history deletion:', error);
+      console.error('❌ [FATAL] Error stack:', error.stack);
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
+  }
+
+  private async deleteHistoryIndividually(historyItems: chrome.history.HistoryItem[], config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    let deletedCount = 0;
+    let skippedCount = 0;
+    
+    for (const item of historyItems) {
+      if (item.url && this.shouldDeleteHistoryItem(item.url, config.excludePatterns)) {
+        try {
+          await chrome.history.deleteUrl({ url: item.url });
+          deletedCount++;
+          console.log(`🗑️ Deleted (fallback): ${item.url}`);
+        } catch (error) {
+          console.error('Error deleting history item:', item.url, error);
+        }
+      } else {
+        skippedCount++;
+        if (item.url) {
+          console.log(`⏭️ Skipped (excluded): ${item.url}`);
+        }
+      }
+    }
+    
+    console.log(`✅ Individual deletion completed: ${deletedCount} deleted, ${skippedCount} skipped`);
+    
+    sendResponse({
+      success: true,
+      data: {
+        deletedCount,
+        skippedCount,
+        method: 'individual_fallback',
+        syncCleared: true
+      }
+    });
   }
 
   private async handleGetHistoryStats(sendResponse: (response: BackgroundResponse) => void): Promise<void> {

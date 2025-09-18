@@ -457,9 +457,11 @@ class PopupController {
   private async handleDeleteNow(): Promise<void> {
     try {
       const config = this.getCurrentHistoryConfig();
+      console.log('🗑️ [POPUP] Starting history deletion with config:', config);
       
-      if (config.retentionDays <= 0) {
-        this.showConfigFeedback('Please set a valid retention period', 'error');
+      if (config.retentionDays < 0) {
+        console.log('❌ [POPUP] Invalid retention days:', config.retentionDays);
+        this.showConfigFeedback('Please set a valid retention period (0 or higher)', 'error');
         return;
       }
       
@@ -471,22 +473,66 @@ class PopupController {
       
       this.showConfigFeedback('Deleting old history...', 'loading');
       
+      console.log('📨 [POPUP] Sending message to background script...');
+      
       // Send delete request
       const response = await chrome.runtime.sendMessage({
         action: 'deleteHistoryNow',
         historyConfig: config
       });
       
+      console.log('📨 [POPUP] Received response from background:', response);
+      
       if (response.success) {
-        const { deletedCount, skippedCount } = response.data || { deletedCount: 0, skippedCount: 0 };
-        this.showConfigFeedback(`History deleted! ${deletedCount} items removed, ${skippedCount} skipped.`, 'success');
+        const { deletedCount, skippedCount, method, syncCleared, totalFound, deleteAll } = response.data || { 
+          deletedCount: 0, 
+          skippedCount: 0, 
+          method: 'unknown',
+          syncCleared: false,
+          totalFound: 0,
+          deleteAll: false
+        };
+        
+        console.log('✅ [POPUP] Deletion successful:', { deletedCount, skippedCount, method, totalFound, deleteAll });
+        
+        let message: string;
+        
+        if (deleteAll) {
+          if (method === 'deleteAll') {
+            message = `🗑️ ALL HISTORY DELETED! Cleared ${deletedCount} total items using efficient deleteAll()`;
+          } else {
+            message = `🗑️ ALL HISTORY DELETED! ${deletedCount} items removed`;
+            if (skippedCount > 0) {
+              message += `, ${skippedCount} skipped due to exclusions`;
+            }
+          }
+        } else {
+          message = `History deleted! ${deletedCount} items removed`;
+          if (skippedCount > 0) {
+            message += `, ${skippedCount} skipped`;
+          }
+        }
+        
+        if (totalFound && totalFound > deletedCount + skippedCount) {
+          message += ` (${totalFound} total found, limited to 100 for testing)`;
+        }
+        if (syncCleared) {
+          message += ` (synced data cleared)`;
+        }
+        if (method === 'bulk') {
+          message += ` - used efficient bulk deletion`;
+        }
+        message += '.';
+        
+        this.showConfigFeedback(message, 'success');
         await this.loadHistoryStats(); // Refresh stats
       } else {
+        console.error('❌ [POPUP] Deletion failed:', response.error);
         this.showConfigFeedback(response.error || 'Failed to delete history', 'error');
       }
     } catch (error) {
-      console.error('Error deleting history:', error);
-      this.showConfigFeedback('Failed to delete history', 'error');
+      console.error('❌ [POPUP] Error deleting history:', error);
+      this.showConfigFeedback(`Failed to delete history: ${error.message}`, 'error');
     } finally {
       // Re-enable button
       if (this.historyConfigElements.deleteNow) {
