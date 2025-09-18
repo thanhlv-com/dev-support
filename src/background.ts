@@ -3,15 +3,18 @@
 /// <reference path="types/global.d.ts" />
 
 interface BackgroundMessage extends ChromeMessage {
-  action: 'trackEvent' | 'getSettings' | 'saveSettings';
+  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen';
   event?: string;
   data?: any;
   settings?: ExtensionSettings;
+  options?: any;
 }
 
 interface BackgroundResponse {
   success: boolean;
   settings?: ExtensionSettings;
+  dataUrl?: string;
+  filename?: string;
   error?: string;
 }
 
@@ -77,6 +80,10 @@ class BackgroundController {
             return true; // Keep message channel open for async response
           }
           break;
+          
+        case 'captureScreen':
+          this.handleScreenCapture(message.options || {}, sendResponse, sender);
+          return true; // Keep message channel open for async response
       }
     });
   }
@@ -231,6 +238,240 @@ class BackgroundController {
         chrome.storage.local.set({ analytics: cleanedAnalytics });
         console.log(`🗑️ Cleaned up ${analytics.length - cleanedAnalytics.length} old analytics entries`);
       }
+    });
+  }
+
+  private async handleScreenCapture(
+    options: any, 
+    sendResponse: (response: BackgroundResponse) => void,
+    sender: chrome.runtime.MessageSender
+  ): Promise<void> {
+    try {
+      console.log('📸 Handling screen capture request:', options);
+      
+      // Try to get current active tab if sender.tab is not available
+      let tabId: number | undefined = sender.tab?.id;
+      let windowId: number | undefined = sender.tab?.windowId;
+      
+      if (!tabId) {
+        console.log('No sender tab, trying to get active tab');
+        try {
+          const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (activeTab?.id) {
+            tabId = activeTab.id;
+            windowId = activeTab.windowId;
+            console.log('Found active tab:', tabId);
+          }
+        } catch (error) {
+          console.error('Error getting active tab:', error);
+        }
+      }
+      
+      if (!tabId) {
+        sendResponse({
+          success: false,
+          error: 'No active tab found. Please make sure a tab is open and try again.'
+        });
+        return;
+      }
+      
+      // Capture the visible area first - if no windowId, use current window
+      const quality = options.quality || 90;
+      const captureOptions = {
+        format: options.format || 'png',
+        quality: quality > 1 ? Math.round(quality) : Math.round(quality * 100) // Handle both 0.9 and 90 formats
+      };
+      
+      const dataUrl = windowId 
+        ? await chrome.tabs.captureVisibleTab(windowId, captureOptions)
+        : await chrome.tabs.captureVisibleTab(captureOptions);
+
+      let finalDataUrl: string;
+      if (options.fullPage) {
+        // For full page capture, we need to implement scrolling
+        finalDataUrl = await this.captureFullPageWithScrolling(tabId, options);
+      } else {
+        finalDataUrl = dataUrl;
+      }
+
+      // Trigger download using chrome.downloads API
+      try {
+        const downloadId = await chrome.downloads.download({
+          url: finalDataUrl,
+          filename: options.filename,
+          saveAs: false // Don't show save dialog, use default download location
+        });
+        
+        console.log('Download started with ID:', downloadId);
+        
+        sendResponse({
+          success: true,
+          dataUrl: finalDataUrl,
+          filename: options.filename
+        });
+      } catch (downloadError) {
+        console.error('Download failed, falling back to data URL:', downloadError);
+        
+        // Fallback: return data URL for manual download
+        sendResponse({
+          success: true,
+          dataUrl: finalDataUrl,
+          filename: options.filename
+        });
+      }
+
+      // Track the event
+      this.handleTrackEvent('screen_capture', {
+        fullPage: options.fullPage,
+        format: options.format,
+        timestamp: Date.now(),
+        url: sender.tab?.url || 'unknown'
+      });
+
+    } catch (error) {
+      console.error('❌ Screen capture failed:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Screen capture failed'
+      });
+    }
+  }
+
+  private async captureFullPageWithScrolling(tabId: number, options: any): Promise<string> {
+    try {
+      // Get page dimensions
+      const [dimensions] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          return {
+            scrollHeight: document.documentElement.scrollHeight,
+            clientHeight: document.documentElement.clientHeight,
+            scrollWidth: document.documentElement.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
+            scrollX: window.scrollX,
+            scrollY: window.scrollY
+          };
+        }
+      });
+
+      if (!dimensions.result) {
+        throw new Error('Could not get page dimensions');
+      }
+
+      const { scrollHeight, clientHeight, scrollWidth, clientWidth, scrollX: originalScrollX, scrollY: originalScrollY } = dimensions.result;
+      
+      // If page fits in viewport, just capture visible area
+      if (scrollHeight <= clientHeight) {
+        const quality = options.quality || 90;
+        return await chrome.tabs.captureVisibleTab({
+          format: options.format || 'png',
+          quality: quality > 1 ? Math.round(quality) : Math.round(quality * 100) // Handle both 0.9 and 90 formats
+        });
+      }
+
+      // Calculate number of captures needed with optimization
+      const captures: string[] = [];
+      const captureHeight = clientHeight;
+      const numCaptures = Math.ceil(scrollHeight / captureHeight);
+      
+      // Limit captures to prevent excessive API calls (max 10 captures)
+      const maxCaptures = 10;
+      if (numCaptures > maxCaptures) {
+        throw new Error(`Page too long (${numCaptures} captures needed). Maximum ${maxCaptures} captures allowed.`);
+      }
+      
+      console.log(`📸 Full page capture: ${numCaptures} sections needed for height ${scrollHeight}px`);
+
+      // Scroll and capture each section
+      for (let i = 0; i < numCaptures; i++) {
+        const scrollTop = i * captureHeight;
+        
+        // Scroll to position
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: (y: number) => {
+            window.scrollTo(0, y);
+          },
+          args: [scrollTop]
+        });
+
+        // Wait for scroll to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Capture this section with rate limiting
+        const quality = options.quality || 90;
+        const sectionDataUrl = await chrome.tabs.captureVisibleTab({
+          format: options.format || 'png',
+          quality: quality > 1 ? Math.round(quality) : Math.round(quality * 100) // Handle both 0.9 and 90 formats
+        });
+        
+        captures.push(sectionDataUrl);
+        
+        // Add delay between captures to respect rate limits (max 2 per second)
+        if (i < numCaptures - 1) {
+          await new Promise(resolve => setTimeout(resolve, 600));
+        }
+      }
+
+      // Restore original scroll position
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: (x: number, y: number) => {
+          window.scrollTo(x, y);
+        },
+        args: [originalScrollX, originalScrollY]
+      });
+
+      // Combine all captures into one image
+      return await this.combineImages(captures, clientWidth, scrollHeight, captureHeight);
+
+    } catch (error) {
+      console.error('Full page capture failed:', error);
+      throw error;
+    }
+  }
+
+  private async combineImages(dataUrls: string[], width: number, totalHeight: number, sectionHeight: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const canvas = new OffscreenCanvas(width, totalHeight);
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      let loadedImages = 0;
+      const images: ImageBitmap[] = [];
+
+      dataUrls.forEach((dataUrl, index) => {
+        fetch(dataUrl)
+          .then(response => response.blob())
+          .then(blob => createImageBitmap(blob))
+          .then(imageBitmap => {
+            images[index] = imageBitmap;
+            loadedImages++;
+
+            if (loadedImages === dataUrls.length) {
+              // Draw all images onto the canvas
+              images.forEach((img, i) => {
+                const y = i * sectionHeight;
+                ctx.drawImage(img, 0, y);
+              });
+
+              // Convert canvas to data URL
+              canvas.convertToBlob({ type: 'image/png' })
+                .then(blob => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = () => reject(new Error('Failed to convert blob to data URL'));
+                  reader.readAsDataURL(blob);
+                })
+                .catch(reject);
+            }
+          })
+          .catch(reject);
+      });
     });
   }
 
