@@ -398,7 +398,8 @@ class DevSupportFeatures {
         theme: 'dark',
         collapsible: true,
         searchable: true,
-        copyable: true
+        copyable: true,
+        formattable: true
       });
       
       console.log('✨ JSON Viewer initialized');
@@ -514,7 +515,8 @@ class DevSupportFeatures {
 
       .json-viewer__copy-btn,
       .json-viewer__expand-btn,
-      .json-viewer__collapse-btn {
+      .json-viewer__collapse-btn,
+      .json-viewer__format-btn {
         padding: 8px 12px;
         border: 1px solid;
         border-radius: 6px;
@@ -528,19 +530,22 @@ class DevSupportFeatures {
 
       .json-viewer--dark .json-viewer__copy-btn,
       .json-viewer--dark .json-viewer__expand-btn,
-      .json-viewer--dark .json-viewer__collapse-btn {
+      .json-viewer--dark .json-viewer__collapse-btn,
+      .json-viewer--dark .json-viewer__format-btn {
         border-color: #444;
       }
 
       .json-viewer--light .json-viewer__copy-btn,
       .json-viewer--light .json-viewer__expand-btn,
-      .json-viewer--light .json-viewer__collapse-btn {
+      .json-viewer--light .json-viewer__collapse-btn,
+      .json-viewer--light .json-viewer__format-btn {
         border-color: #ddd;
       }
 
       .json-viewer__copy-btn:hover,
       .json-viewer__expand-btn:hover,
-      .json-viewer__collapse-btn:hover {
+      .json-viewer__collapse-btn:hover,
+      .json-viewer__format-btn:hover {
         background-color: rgba(0, 122, 204, 0.1);
         border-color: #007acc;
       }
@@ -673,6 +678,42 @@ class DevSupportFeatures {
         padding: 1px 2px;
         border-radius: 2px;
         font-weight: 600;
+      }
+
+      .json-viewer__formatted-container {
+        position: relative;
+        overflow: auto;
+      }
+
+      .json-viewer__formatted-text {
+        margin: 0;
+        padding: 16px;
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-x: auto;
+        border-radius: 6px;
+        border: 1px solid;
+        background-color: rgba(255, 255, 255, 0.02);
+      }
+
+      .json-viewer--dark .json-viewer__formatted-text {
+        border-color: #333;
+        background-color: rgba(255, 255, 255, 0.02);
+      }
+
+      .json-viewer--light .json-viewer__formatted-text {
+        border-color: #e1e1e1;
+        background-color: rgba(0, 0, 0, 0.02);
+      }
+
+      .json-viewer__formatted-text mark {
+        background-color: #ffd700;
+        color: #000;
+        padding: 1px 2px;
+        border-radius: 2px;
       }
 
       .json-viewer__error {

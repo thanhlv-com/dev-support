@@ -11,6 +11,7 @@ interface JsonViewerOptions {
   collapsible?: boolean;
   searchable?: boolean;
   copyable?: boolean;
+  formattable?: boolean;
 }
 
 export class JsonViewer {
@@ -19,6 +20,7 @@ export class JsonViewer {
   private options: JsonViewerOptions;
   private searchTerm: string = '';
   private expandedPaths: Set<string> = new Set();
+  private isFormattedView: boolean = false;
 
   constructor(container: HTMLElement, jsonData: any, options: JsonViewerOptions = {}) {
     this.container = container;
@@ -28,6 +30,7 @@ export class JsonViewer {
       collapsible: true,
       searchable: true,
       copyable: true,
+      formattable: true,
       ...options
     };
     
@@ -40,7 +43,7 @@ export class JsonViewer {
     this.container.innerHTML = '';
     this.container.className = `json-viewer json-viewer--${this.options.theme}`;
     
-    if (this.options.searchable || this.options.copyable) {
+    if (this.options.searchable || this.options.copyable || this.options.formattable) {
       this.renderToolbar();
     }
     
@@ -48,7 +51,11 @@ export class JsonViewer {
     jsonContainer.className = 'json-viewer__content';
     
     try {
-      this.renderJsonNode(jsonContainer, this.jsonData, '', '');
+      if (this.isFormattedView) {
+        this.renderFormattedJson(jsonContainer);
+      } else {
+        this.renderJsonNode(jsonContainer, this.jsonData, '', '');
+      }
     } catch (error) {
       this.renderError(jsonContainer, 'Invalid JSON data');
     }
@@ -85,18 +92,28 @@ export class JsonViewer {
       toolbar.appendChild(copyButton);
     }
     
-    const expandAllButton = document.createElement('button');
-    expandAllButton.className = 'json-viewer__expand-btn';
-    expandAllButton.innerHTML = '⬇️ Expand All';
-    expandAllButton.addEventListener('click', () => this.expandAll());
+    if (this.options.formattable) {
+      const formatButton = document.createElement('button');
+      formatButton.className = 'json-viewer__format-btn';
+      formatButton.innerHTML = this.isFormattedView ? '🌳 Tree View' : '📄 Format JSON';
+      formatButton.addEventListener('click', () => this.toggleFormat());
+      toolbar.appendChild(formatButton);
+    }
     
-    const collapseAllButton = document.createElement('button');
-    collapseAllButton.className = 'json-viewer__collapse-btn';
-    collapseAllButton.innerHTML = '⬆️ Collapse All';
-    collapseAllButton.addEventListener('click', () => this.collapseAll());
-    
-    toolbar.appendChild(expandAllButton);
-    toolbar.appendChild(collapseAllButton);
+    if (!this.isFormattedView) {
+      const expandAllButton = document.createElement('button');
+      expandAllButton.className = 'json-viewer__expand-btn';
+      expandAllButton.innerHTML = '⬇️ Expand All';
+      expandAllButton.addEventListener('click', () => this.expandAll());
+      
+      const collapseAllButton = document.createElement('button');
+      collapseAllButton.className = 'json-viewer__collapse-btn';
+      collapseAllButton.innerHTML = '⬆️ Collapse All';
+      collapseAllButton.addEventListener('click', () => this.collapseAll());
+      
+      toolbar.appendChild(expandAllButton);
+      toolbar.appendChild(collapseAllButton);
+    }
     
     this.container.appendChild(toolbar);
   }
@@ -251,15 +268,27 @@ export class JsonViewer {
   }
 
   private highlightSearch(): void {
-    const nodes = this.container.querySelectorAll('.json-viewer__key, .json-viewer__value');
-    nodes.forEach((node) => {
-      const text = node.textContent || '';
-      if (this.searchTerm && text.toLowerCase().includes(this.searchTerm)) {
-        node.classList.add('json-viewer__highlighted');
-      } else {
-        node.classList.remove('json-viewer__highlighted');
+    if (this.isFormattedView) {
+      // For formatted view, highlight within the pre element
+      const preElement = this.container.querySelector('.json-viewer__formatted-text');
+      if (preElement && this.searchTerm) {
+        const text = preElement.textContent || '';
+        const regex = new RegExp(`(${this.searchTerm})`, 'gi');
+        const highlightedText = text.replace(regex, '<mark class="json-viewer__highlighted">$1</mark>');
+        preElement.innerHTML = highlightedText;
       }
-    });
+    } else {
+      // For tree view, highlight keys and values
+      const nodes = this.container.querySelectorAll('.json-viewer__key, .json-viewer__value');
+      nodes.forEach((node) => {
+        const text = node.textContent || '';
+        if (this.searchTerm && text.toLowerCase().includes(this.searchTerm)) {
+          node.classList.add('json-viewer__highlighted');
+        } else {
+          node.classList.remove('json-viewer__highlighted');
+        }
+      });
+    }
   }
 
   private async copyToClipboard(): Promise<void> {
@@ -282,6 +311,23 @@ export class JsonViewer {
 
   public updateData(jsonData: any): void {
     this.jsonData = jsonData;
+    this.render();
+  }
+
+  private renderFormattedJson(container: HTMLElement): void {
+    const formattedContainer = document.createElement('div');
+    formattedContainer.className = 'json-viewer__formatted-container';
+    
+    const preElement = document.createElement('pre');
+    preElement.className = 'json-viewer__formatted-text';
+    preElement.textContent = JSON.stringify(this.jsonData, null, 2);
+    
+    formattedContainer.appendChild(preElement);
+    container.appendChild(formattedContainer);
+  }
+
+  private toggleFormat(): void {
+    this.isFormattedView = !this.isFormattedView;
     this.render();
   }
 
