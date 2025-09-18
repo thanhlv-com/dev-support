@@ -2,10 +2,6 @@
 
 /// <reference path="types/global.d.ts" />
 
-interface FeatureToggleElements {
-  mediumFreedium: HTMLInputElement | null;
-  jsonViewer: HTMLInputElement | null;
-}
 
 interface StatusElements {
   currentUrl: HTMLElement | null;
@@ -20,16 +16,11 @@ interface QuickActionElements {
 }
 
 class PopupController {
-  private featureToggles: FeatureToggleElements;
   private statusElements: StatusElements;
   private quickActionElements: QuickActionElements;
   private currentTab: chrome.tabs.Tab | null = null;
 
   constructor() {
-    this.featureToggles = {
-      mediumFreedium: null,
-      jsonViewer: null
-    };
     
     this.statusElements = {
       currentUrl: null,
@@ -49,18 +40,12 @@ class PopupController {
   private async init(): Promise<void> {
     await this.initializeElements();
     await this.loadCurrentTab();
-    await this.loadFeatureStates();
-    this.setupEventListeners();
     this.setupScreenCaptureListeners();
     this.setupQuickActionListeners();
     await this.updateActiveCount();
   }
 
   private async initializeElements(): Promise<void> {
-    // Get feature toggle elements
-    this.featureToggles.mediumFreedium = document.getElementById('mediumFreedium') as HTMLInputElement;
-    this.featureToggles.jsonViewer = document.getElementById('jsonViewer') as HTMLInputElement;
-    
     // Get status elements
     this.statusElements.currentUrl = document.getElementById('currentUrl');
     this.statusElements.activeCount = document.getElementById('activeCount');
@@ -99,90 +84,6 @@ class PopupController {
     }
   }
 
-  private async loadFeatureStates(): Promise<void> {
-    try {
-      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']);
-      
-      // Set toggle states based on saved preferences
-      if (this.featureToggles.mediumFreedium) {
-        this.featureToggles.mediumFreedium.checked = result.mediumFreedium !== false; // Default to true
-      }
-      if (this.featureToggles.jsonViewer) {
-        this.featureToggles.jsonViewer.checked = result.jsonViewer !== false; // Default to true
-      }
-    } catch (error) {
-      console.error('Error loading feature states:', error);
-    }
-  }
-
-  private setupEventListeners(): void {
-    // Medium Freedium toggle
-    if (this.featureToggles.mediumFreedium) {
-      this.featureToggles.mediumFreedium.addEventListener('change', (e) => {
-        this.handleFeatureToggle('mediumFreedium', e);
-      });
-    }
-    
-    // JSON Viewer toggle
-    if (this.featureToggles.jsonViewer) {
-      this.featureToggles.jsonViewer.addEventListener('change', (e) => {
-        this.handleFeatureToggle('jsonViewer', e);
-      });
-    }
-  }
-
-  private async handleFeatureToggle(feature: 'mediumFreedium' | 'jsonViewer', event: Event): Promise<void> {
-    const target = event.target as HTMLInputElement;
-    const enabled = target.checked;
-    
-    try {
-      // Save state
-      await chrome.storage.sync.set({ [feature]: enabled });
-      
-      // Send message to content script
-      if (this.currentTab?.id) {
-        try {
-          await chrome.tabs.sendMessage(this.currentTab.id, {
-            action: 'toggleFeature',
-            feature,
-            enabled
-          });
-        } catch (error) {
-          // Ignore if content script not ready
-          console.log('Content script not ready, settings saved');
-        }
-      }
-      
-      // Show visual feedback
-      this.showFeatureFeedback(feature, enabled);
-      
-      // Update counter
-      await this.updateActiveCount();
-      
-      console.log(`${String(feature)} feature:`, enabled ? 'enabled' : 'disabled');
-    } catch (error) {
-      console.error(`Error toggling ${String(feature)} feature:`, error);
-      // Revert toggle state on error
-      target.checked = !enabled;
-    }
-  }
-
-  private showFeatureFeedback(featureId: 'mediumFreedium' | 'jsonViewer', enabled: boolean): void {
-    const toggleElement = document.querySelector(`#${String(featureId)}`)?.closest('.feature-toggle') as HTMLElement;
-    
-    if (!toggleElement) return;
-    
-    // Remove existing classes
-    toggleElement.classList.remove('success', 'error');
-    
-    // Add success class
-    toggleElement.classList.add('success');
-    
-    // Remove after animation
-    setTimeout(() => {
-      toggleElement.classList.remove('success');
-    }, 2000);
-  }
 
   private async updateActiveCount(): Promise<void> {
     try {
