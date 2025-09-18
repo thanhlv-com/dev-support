@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Support</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>🚀 Dev Support</h1>
+      <p class="subtitle">Developer Productivity Tools</p>
+    </header>
+    
+    <main class="main-content">
+      <div class="feature-section">
+        <h2>Quick Actions</h2>
+        <div class="button-grid">
+          <button id="clearConsole" class="action-btn">
+            🧹 Clear Console
+          </button>
+          <button id="refreshPage" class="action-btn">
+            🔄 Refresh Page
+          </button>
+          <button id="toggleDevTools" class="action-btn">
+            🔧 Dev Tools
+          </button>
+          <button id="exportData" class="action-btn">
+            📤 Export Data
+          </button>
+        </div>
+      </div>
+      
+      <div class="info-section">
+        <h2>Page Info</h2>
+        <div class="info-item">
+          <span class="label">URL:</span>
+          <span id="currentUrl" class="value">Loading...</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Title:</span>
+          <span id="pageTitle" class="value">Loading...</span>
+        </div>
+      </div>
+      
+      <div class="settings-section">
+        <h2>Settings</h2>
+        <label class="toggle-label">
+          <input type="checkbox" id="autoRefresh">
+          <span class="toggle-slider"></span>
+          Auto-refresh enabled
+        </label>
+      </div>
+    </main>
+    
+    <footer class="footer">
+      <p>v1.0.0 | Made with ❤️</p>
+    </footer>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

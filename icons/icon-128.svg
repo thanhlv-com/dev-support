@@ -1,0 +1,74 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad128" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow128" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)"/>
+    </filter>
+    <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(255,255,255,0.3)"/>
+    </filter>
+  </defs>
+  
+  <!-- Background rounded square with shadow -->
+  <rect x="8" y="8" width="112" height="112" rx="24" ry="24" fill="url(#grad128)" filter="url(#shadow128)"/>
+  
+  <!-- Inner highlight -->
+  <rect x="12" y="12" width="104" height="104" rx="20" ry="20" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  
+  <!-- Developer tools design -->
+  <g fill="#fff">
+    <!-- Large code brackets -->
+    <path d="M40 32 L24 48 L24 54 L40 70 L40 62 L32 54 L32 48 L40 40 Z" 
+          stroke="#fff" stroke-width="2" fill-opacity="0.95" stroke-linejoin="round"/>
+    <path d="M88 32 L88 40 L96 48 L96 54 L88 62 L88 70 L104 54 L104 48 Z" 
+          stroke="#fff" stroke-width="2" fill-opacity="0.95" stroke-linejoin="round"/>
+    
+    <!-- Central developer console/terminal -->
+    <rect x="44" y="42" width="40" height="24" rx="6" fill="none" stroke="#fff" stroke-width="3" stroke-opacity="0.9"/>
+    
+    <!-- Terminal content -->
+    <g fill="#fff" fill-opacity="0.9">
+      <!-- Prompt line 1 -->
+      <path d="M50 50 L56 53 L50 56" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="58" y="52" width="20" height="2" rx="1" fill="#fff"/>
+      
+      <!-- Prompt line 2 -->
+      <path d="M50 58 L56 61 L50 64" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="58" y="60" width="16" height="2" rx="1" fill="#fff" fill-opacity="0.7"/>
+    </g>
+    
+    <!-- Developer productivity elements -->
+    <!-- Gear/settings -->
+    <g transform="translate(64,84)">
+      <circle r="8" fill="none" stroke="#fff" stroke-width="2.5" stroke-opacity="0.8"/>
+      <circle r="4" fill="#fff" fill-opacity="0.8"/>
+      <!-- Gear teeth -->
+      <g stroke="#fff" stroke-width="2" stroke-opacity="0.8" fill="#fff">
+        <rect x="-1" y="-10" width="2" height="4"/>
+        <rect x="-1" y="6" width="2" height="4"/>
+        <rect x="6" y="-1" width="4" height="2"/>
+        <rect x="-10" y="-1" width="4" height="2"/>
+        <rect x="-7.5" y="-7.5" width="3" height="3" transform="rotate(45)"/>
+        <rect x="4.5" y="-7.5" width="3" height="3" transform="rotate(45)"/>
+        <rect x="4.5" y="4.5" width="3" height="3" transform="rotate(45)"/>
+        <rect x="-7.5" y="4.5" width="3" height="3" transform="rotate(45)"/>
+      </g>
+    </g>
+    
+    <!-- Productivity indicators -->
+    <circle cx="40" cy="84" r="4" fill="#fff" fill-opacity="0.7"/>
+    <circle cx="88" cy="84" r="4" fill="#fff" fill-opacity="0.7"/>
+    
+    <!-- Top accent bar -->
+    <rect x="48" y="20" width="32" height="4" rx="2" fill="#fff" fill-opacity="0.8"/>
+    
+    <!-- Bottom status bar -->
+    <rect x="32" y="100" width="64" height="3" rx="1.5" fill="#fff" fill-opacity="0.6"/>
+  </g>
+  
+  <!-- Subtle inner glow -->
+  <rect x="8" y="8" width="112" height="112" rx="24" ry="24" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+</svg>

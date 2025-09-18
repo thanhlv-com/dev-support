@@ -1,0 +1,21 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad16" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="8" cy="8" r="7" fill="url(#grad16)" stroke="#fff" stroke-width="0.5"/>
+  
+  <!-- Code brackets symbol -->
+  <g fill="#fff" fill-opacity="0.9">
+    <!-- Left bracket -->
+    <path d="M5 4.5 L3.5 6 L3.5 7 L5 8.5 L5 7.5 L4.5 7 L4.5 6 L5 5.5 Z"/>
+    <!-- Right bracket -->
+    <path d="M11 4.5 L11 5.5 L11.5 6 L11.5 7 L11 7.5 L11 8.5 L12.5 7 L12.5 6 Z"/>
+    <!-- Center dot -->
+    <circle cx="8" cy="6.5" r="0.8"/>
+  </g>
+</svg>

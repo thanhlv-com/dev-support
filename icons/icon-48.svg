@@ -1,0 +1,34 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad48" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="rgba(0,0,0,0.2)"/>
+    </filter>
+  </defs>
+  
+  <!-- Background rounded square with shadow -->
+  <rect x="3" y="3" width="42" height="42" rx="9" ry="9" fill="url(#grad48)" filter="url(#shadow)"/>
+  
+  <!-- Developer tools design -->
+  <g fill="#fff">
+    <!-- Code brackets -->
+    <path d="M15 12 L10 17 L10 19 L15 24 L15 21 L13 19 L13 17 L15 15 Z" stroke="#fff" stroke-width="0.8" fill-opacity="0.95"/>
+    <path d="M33 12 L33 15 L35 17 L35 19 L33 21 L33 24 L38 19 L38 17 Z" stroke="#fff" stroke-width="0.8" fill-opacity="0.95"/>
+    
+    <!-- Central developer icon - terminal/console -->
+    <rect x="18" y="16" width="12" height="8" rx="2" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity="0.9"/>
+    <!-- Terminal prompt -->
+    <path d="M20 19 L22 20.5 L20 22" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="23" y1="21.5" x2="27" y2="21.5" stroke="#fff" stroke-width="1" stroke-linecap="round"/>
+    
+    <!-- Productivity indicators -->
+    <circle cx="24" cy="32" r="2" fill="#fff" fill-opacity="0.7"/>
+    <rect x="20" y="35" width="8" height="1.5" rx="0.75" fill="#fff" fill-opacity="0.6"/>
+    
+    <!-- Top accent -->
+    <rect x="20" y="8" width="8" height="2" rx="1" fill="#fff" fill-opacity="0.8"/>
+  </g>
+</svg>
