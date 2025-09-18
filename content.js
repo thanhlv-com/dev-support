@@ -1,352 +1,297 @@
-// Content script for Dev Support Extension
-// This script runs on every webpage and provides additional functionality
+// Content script for Dev Support Extension - Medium Freedium Feature
 
 console.log('🚀 Dev Support Extension content script loaded');
 
-// Create a namespace to avoid conflicts
-const DevSupport = {
-  initialized: false,
+class DevSupportFeatures {
+  constructor() {
+    this.features = {
+      mediumFreedium: false
+    };
+    this.floatingButton = null;
+    
+    this.init();
+  }
   
-  init() {
-    if (this.initialized) return;
-    this.initialized = true;
+  async init() {
+    // Load feature states from storage
+    await this.loadFeatureStates();
     
-    console.log('🔧 Initializing Dev Support content script');
-    
+    // Setup message listener
     this.setupMessageListener();
-    this.setupKeyboardShortcuts();
-    this.setupPageAnalytics();
-    this.injectUtilities();
-  },
+    
+    // Initialize features based on current page
+    this.initializeFeatures();
+  }
+  
+  async loadFeatureStates() {
+    try {
+      const result = await chrome.storage.sync.get(['mediumFreedium']);
+      this.features.mediumFreedium = result.mediumFreedium !== false; // Default to true
+      
+      console.log('📋 Loaded feature states:', this.features);
+    } catch (error) {
+      console.error('❌ Error loading feature states:', error);
+      // Use defaults
+      this.features.mediumFreedium = true;
+    }
+  }
   
   setupMessageListener() {
-    // Listen for messages from popup and background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('📨 Content script received message:', message);
       
       switch (message.action) {
-        case 'getPageInfo':
-          sendResponse(this.getPageInfo());
-          break;
-          
-        case 'highlightElements':
-          this.highlightElements(message.selector);
+        case 'toggleFeature':
+          this.toggleFeature(message.feature, message.enabled);
           sendResponse({ success: true });
           break;
-          
-        case 'injectCSS':
-          this.injectCSS(message.css);
-          sendResponse({ success: true });
-          break;
-          
-        case 'analyzePerformance':
-          sendResponse(this.analyzePerformance());
-          break;
       }
-    });
-  },
-  
-  setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      // Ctrl/Cmd + Shift + D: Toggle debug mode
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
-        e.preventDefault();
-        this.toggleDebugMode();
-      }
-      
-      // Ctrl/Cmd + Shift + H: Highlight all interactive elements
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'H') {
-        e.preventDefault();
-        this.highlightInteractiveElements();
-      }
-    });
-  },
-  
-  setupPageAnalytics() {
-    // Track page load time
-    window.addEventListener('load', () => {
-      const loadTime = performance.now();
-      console.log(`📊 Page load time: ${loadTime.toFixed(2)}ms`);
-      
-      // Store analytics data
-      this.storeAnalytics({
-        url: window.location.href,
-        loadTime: loadTime,
-        timestamp: Date.now(),
-        userAgent: navigator.userAgent
-      });
-    });
-    
-    // Track errors
-    window.addEventListener('error', (e) => {
-      console.error('❌ JavaScript error caught by Dev Support:', e.error);
-      this.storeError({
-        message: e.message,
-        filename: e.filename,
-        lineno: e.lineno,
-        colno: e.colno,
-        error: e.error?.stack,
-        url: window.location.href,
-        timestamp: Date.now()
-      });
-    });
-  },
-  
-  injectUtilities() {
-    // Add utility functions to window object for easy access in console
-    window.DevSupportUtils = {
-      // Highlight all elements matching a selector
-      highlight: (selector) => this.highlightElements(selector),
-      
-      // Get element information
-      inspect: (element) => this.inspectElement(element),
-      
-      // Performance analysis
-      performance: () => this.analyzePerformance(),
-      
-      // Export page data
-      export: () => this.exportPageData(),
-      
-      // Clear all highlights
-      clearHighlights: () => this.clearHighlights()
-    };
-    
-    console.log('🛠️ Dev Support utilities injected. Use window.DevSupportUtils');
-  },
-  
-  getPageInfo() {
-    return {
-      url: window.location.href,
-      title: document.title,
-      domain: window.location.hostname,
-      protocol: window.location.protocol,
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight
-      },
-      scroll: {
-        x: window.scrollX,
-        y: window.scrollY
-      },
-      elements: {
-        total: document.querySelectorAll('*').length,
-        images: document.querySelectorAll('img').length,
-        links: document.querySelectorAll('a').length,
-        forms: document.querySelectorAll('form').length,
-        inputs: document.querySelectorAll('input, textarea, select').length
-      },
-      performance: this.analyzePerformance()
-    };
-  },
-  
-  highlightElements(selector) {
-    try {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach((el, index) => {
-        const highlight = document.createElement('div');
-        highlight.className = 'dev-support-highlight';
-        highlight.style.cssText = `
-          position: absolute;
-          pointer-events: none;
-          background: rgba(255, 0, 0, 0.3);
-          border: 2px solid #ff0000;
-          z-index: 10000;
-          border-radius: 4px;
-        `;
-        
-        const rect = el.getBoundingClientRect();
-        highlight.style.top = (rect.top + window.scrollY) + 'px';
-        highlight.style.left = (rect.left + window.scrollX) + 'px';
-        highlight.style.width = rect.width + 'px';
-        highlight.style.height = rect.height + 'px';
-        
-        document.body.appendChild(highlight);
-        
-        // Add number label
-        const label = document.createElement('div');
-        label.textContent = index + 1;
-        label.style.cssText = `
-          position: absolute;
-          top: -20px;
-          left: 0;
-          background: #ff0000;
-          color: white;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: bold;
-        `;
-        highlight.appendChild(label);
-      });
-      
-      console.log(`🎯 Highlighted ${elements.length} elements matching "${selector}"`);
-      
-      // Auto-clear after 5 seconds
-      setTimeout(() => this.clearHighlights(), 5000);
-      
-    } catch (error) {
-      console.error('❌ Error highlighting elements:', error);
-    }
-  },
-  
-  highlightInteractiveElements() {
-    const selectors = [
-      'button',
-      'a[href]',
-      'input',
-      'textarea',
-      'select',
-      '[onclick]',
-      '[role="button"]',
-      '[tabindex]'
-    ];
-    
-    this.highlightElements(selectors.join(', '));
-  },
-  
-  clearHighlights() {
-    const highlights = document.querySelectorAll('.dev-support-highlight');
-    highlights.forEach(highlight => highlight.remove());
-    console.log(`🧹 Cleared ${highlights.length} highlights`);
-  },
-  
-  toggleDebugMode() {
-    const debugMode = document.body.classList.toggle('dev-support-debug-mode');
-    
-    if (debugMode) {
-      this.injectCSS(`
-        .dev-support-debug-mode * {
-          outline: 1px solid rgba(255, 0, 0, 0.3) !important;
-        }
-        .dev-support-debug-mode *:hover {
-          outline: 2px solid #ff0000 !important;
-          background: rgba(255, 0, 0, 0.1) !important;
-        }
-      `);
-      console.log('🔍 Debug mode enabled - all elements outlined');
-    } else {
-      const debugStyles = document.querySelector('#dev-support-debug-styles');
-      if (debugStyles) debugStyles.remove();
-      console.log('🔍 Debug mode disabled');
-    }
-  },
-  
-  injectCSS(css) {
-    const style = document.createElement('style');
-    style.id = 'dev-support-debug-styles';
-    style.textContent = css;
-    document.head.appendChild(style);
-  },
-  
-  inspectElement(element) {
-    if (!element) return null;
-    
-    const rect = element.getBoundingClientRect();
-    const computedStyle = window.getComputedStyle(element);
-    
-    return {
-      tagName: element.tagName,
-      id: element.id,
-      className: element.className,
-      attributes: Array.from(element.attributes).map(attr => ({
-        name: attr.name,
-        value: attr.value
-      })),
-      position: {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height
-      },
-      styles: {
-        display: computedStyle.display,
-        position: computedStyle.position,
-        zIndex: computedStyle.zIndex,
-        backgroundColor: computedStyle.backgroundColor,
-        color: computedStyle.color
-      },
-      textContent: element.textContent?.substring(0, 100) + '...'
-    };
-  },
-  
-  analyzePerformance() {
-    const navigation = performance.getEntriesByType('navigation')[0];
-    const paint = performance.getEntriesByType('paint');
-    
-    return {
-      navigation: navigation ? {
-        domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
-        loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
-        domInteractive: navigation.domInteractive - navigation.fetchStart,
-        firstByte: navigation.responseStart - navigation.requestStart
-      } : null,
-      paint: paint.reduce((acc, entry) => {
-        acc[entry.name] = entry.startTime;
-        return acc;
-      }, {}),
-      memory: performance.memory || null,
-      timing: {
-        now: performance.now(),
-        timeOrigin: performance.timeOrigin
-      }
-    };
-  },
-  
-  exportPageData() {
-    const data = {
-      ...this.getPageInfo(),
-      html: document.documentElement.outerHTML.substring(0, 10000) + '...',
-      localStorage: { ...localStorage },
-      sessionStorage: { ...sessionStorage },
-      cookies: document.cookie
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `page-analysis-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    console.log('📤 Page data exported', data);
-    return data;
-  },
-  
-  storeAnalytics(data) {
-    chrome.storage.local.get(['analytics'], (result) => {
-      const analytics = result.analytics || [];
-      analytics.push(data);
-      
-      // Keep only last 100 entries
-      if (analytics.length > 100) {
-        analytics.splice(0, analytics.length - 100);
-      }
-      
-      chrome.storage.local.set({ analytics });
-    });
-  },
-  
-  storeError(errorData) {
-    chrome.storage.local.get(['errors'], (result) => {
-      const errors = result.errors || [];
-      errors.push(errorData);
-      
-      // Keep only last 50 errors
-      if (errors.length > 50) {
-        errors.splice(0, errors.length - 50);
-      }
-      
-      chrome.storage.local.set({ errors });
     });
   }
-};
+  
+  toggleFeature(feature, enabled) {
+    this.features[feature] = enabled;
+    console.log(`🔄 Feature ${feature} ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // Reinitialize features
+    this.initializeFeatures();
+  }
+  
+  initializeFeatures() {
+    // Medium Freedium feature
+    if (this.features.mediumFreedium && this.isMediumPage()) {
+      this.initMediumFreedium();
+    } else {
+      this.removeMediumFreedium();
+    }
+  }
+  
+  isMediumPage() {
+    const hostname = window.location.hostname;
+    return hostname === 'medium.com' || 
+           hostname.endsWith('.medium.com') ||
+           hostname === 'towardsdatascience.com' ||
+           hostname === 'blog.medium.com';
+  }
+  
+  initMediumFreedium() {
+    console.log('🌟 Initializing Medium Freedium feature');
+    
+    // Remove existing button if any
+    this.removeMediumFreedium();
+    
+    // Create floating button
+    this.createFreediumButton();
+  }
+  
+  removeMediumFreedium() {
+    if (this.floatingButton) {
+      this.floatingButton.remove();
+      this.floatingButton = null;
+      console.log('🗑️ Removed Freedium button');
+    }
+  }
+  
+  createFreediumButton() {
+    // Create the floating button
+    this.floatingButton = document.createElement('div');
+    this.floatingButton.id = 'dev-support-freedium-btn';
+    this.floatingButton.innerHTML = `
+      <div class="freedium-button" title="Open in Freedium (Free Access)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span class="freedium-text">Free</span>
+      </div>
+    `;
+    
+    // Add styles
+    this.addFreediumStyles();
+    
+    // Position at 5 o'clock (bottom-right)
+    this.floatingButton.style.cssText = `
+      position: fixed;
+      bottom: 60px;
+      right: 60px;
+      z-index: 10000;
+      cursor: pointer;
+      user-select: none;
+      animation: freediumFadeIn 0.5s ease-out;
+    `;
+    
+    // Add click handler
+    this.floatingButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openInFreedium();
+    });
+    
+    // Add hover effects
+    this.floatingButton.addEventListener('mouseenter', () => {
+      this.floatingButton.style.transform = 'scale(1.1) rotate(5deg)';
+    });
+    
+    this.floatingButton.addEventListener('mouseleave', () => {
+      this.floatingButton.style.transform = 'scale(1) rotate(0deg)';
+    });
+    
+    // Add to page
+    document.body.appendChild(this.floatingButton);
+    
+    console.log('✨ Freedium button created and added to page');
+  }
+  
+  addFreediumStyles() {
+    // Check if styles already exist
+    if (document.getElementById('dev-support-freedium-styles')) {
+      return;
+    }
+    
+    const style = document.createElement('style');
+    style.id = 'dev-support-freedium-styles';
+    style.textContent = `
+      @keyframes freediumFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px) scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      
+      @keyframes freediumPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      
+      .freedium-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      .freedium-button:hover {
+        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+      }
+      
+      .freedium-button:active {
+        transform: scale(0.95) !important;
+      }
+      
+      .freedium-button svg {
+        width: 28px;
+        height: 28px;
+        margin-bottom: -2px;
+      }
+      
+      .freedium-text {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      
+      /* Mobile responsive */
+      @media (max-width: 768px) {
+        #dev-support-freedium-btn {
+          bottom: 30px !important;
+          right: 30px !important;
+        }
+        
+        .freedium-button {
+          width: 70px;
+          height: 70px;
+        }
+        
+        .freedium-button svg {
+          width: 24px;
+          height: 24px;
+        }
+        
+        .freedium-text {
+          font-size: 10px;
+        }
+      }
+      
+      /* Ensure button stays above all content */
+      #dev-support-freedium-btn {
+        z-index: 2147483647 !important;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+  
+  openInFreedium() {
+    const currentUrl = window.location.href;
+    const freediumUrl = `https://freedium.cfd/${currentUrl}`;
+    
+    console.log('🌐 Opening in Freedium:', freediumUrl);
+    
+    // Add click animation
+    this.floatingButton.style.animation = 'freediumPulse 0.3s ease-out';
+    
+    // Open in new tab
+    window.open(freediumUrl, '_blank', 'noopener,noreferrer');
+    
+    // Reset animation
+    setTimeout(() => {
+      if (this.floatingButton) {
+        this.floatingButton.style.animation = '';
+      }
+    }, 300);
+    
+    // Send analytics
+    try {
+      chrome.runtime.sendMessage({
+        action: 'trackEvent',
+        event: 'freedium_redirect',
+        data: {
+          originalUrl: currentUrl,
+          freediumUrl: freediumUrl,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      // Ignore if background script not available
+    }
+  }
+}
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => DevSupport.init());
+  document.addEventListener('DOMContentLoaded', () => {
+    new DevSupportFeatures();
+  });
 } else {
-  DevSupport.init();
+  new DevSupportFeatures();
 }
+
+// Handle page navigation (for SPAs)
+let lastUrl = location.href;
+new MutationObserver(() => {
+  const url = location.href;
+  if (url !== lastUrl) {
+    lastUrl = url;
+    console.log('🔄 Page navigation detected, reinitializing features');
+    // Small delay to let the page settle
+    setTimeout(() => {
+      new DevSupportFeatures();
+    }, 1000);
+  }
+}).observe(document, { subtree: true, childList: true });

@@ -3,135 +3,104 @@ document.addEventListener('DOMContentLoaded', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   
   // Update UI with current page info
-  document.getElementById('currentUrl').textContent = tab.url;
-  document.getElementById('pageTitle').textContent = tab.title;
+  document.getElementById('currentUrl').textContent = tab.url || 'Unknown';
   
-  // Load saved settings
-  const result = await chrome.storage.sync.get(['autoRefresh']);
-  document.getElementById('autoRefresh').checked = result.autoRefresh || false;
+  // Load saved feature states
+  await loadFeatureStates();
   
-  // Button event listeners
-  document.getElementById('clearConsole').addEventListener('click', async () => {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: clearConsole
-    });
-    showNotification('Console cleared! 🧹');
-  });
+  // Setup event listeners for feature toggles
+  setupFeatureToggles();
   
-  document.getElementById('refreshPage').addEventListener('click', async () => {
-    await chrome.tabs.reload(tab.id);
-    showNotification('Page refreshed! 🔄');
-    window.close();
-  });
-  
-  document.getElementById('toggleDevTools').addEventListener('click', async () => {
-    // Send message to background script to toggle dev tools
-    chrome.runtime.sendMessage({ action: 'toggleDevTools', tabId: tab.id });
-    showNotification('Dev tools toggled! 🔧');
-  });
-  
-  document.getElementById('exportData').addEventListener('click', async () => {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: exportPageData
-    });
-    showNotification('Data exported! 📤');
-  });
-  
-  // Settings toggle
-  document.getElementById('autoRefresh').addEventListener('change', async (e) => {
-    await chrome.storage.sync.set({ autoRefresh: e.target.checked });
-    const message = e.target.checked ? 'Auto-refresh enabled! ✅' : 'Auto-refresh disabled! ❌';
-    showNotification(message);
-    
-    // Send message to background script
-    chrome.runtime.sendMessage({ 
-      action: 'toggleAutoRefresh', 
-      enabled: e.target.checked,
-      tabId: tab.id 
-    });
-  });
+  // Update active feature count
+  updateActiveCount();
 });
 
-// Functions to be injected into the page
-function clearConsole() {
-  console.clear();
-  console.log('🧹 Console cleared by Dev Support Extension');
-}
-
-function exportPageData() {
-  const data = {
-    url: window.location.href,
-    title: document.title,
-    timestamp: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    localStorage: { ...localStorage },
-    sessionStorage: { ...sessionStorage },
-    cookies: document.cookie,
-    metaTags: Array.from(document.querySelectorAll('meta')).map(meta => ({
-      name: meta.name || meta.property,
-      content: meta.content
-    })),
-    links: Array.from(document.querySelectorAll('a')).map(link => ({
-      text: link.textContent.trim(),
-      href: link.href
-    })).slice(0, 20) // Limit to first 20 links
-  };
-  
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `page-data-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  console.log('📤 Page data exported by Dev Support Extension', data);
-}
-
-// Utility function to show notifications
-function showNotification(message) {
-  // Create a temporary notification element
-  const notification = document.createElement('div');
-  notification.textContent = message;
-  notification.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: #4CAF50;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 10000;
-    animation: slideInRight 0.3s ease-out;
-  `;
-  
-  // Add animation styles
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes slideInRight {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+async function loadFeatureStates() {
+  try {
+    const result = await chrome.storage.sync.get([
+      'mediumFreedium'
+    ]);
+    
+    // Set toggle states based on saved preferences
+    const mediumToggle = document.getElementById('mediumFreedium');
+    if (mediumToggle) {
+      mediumToggle.checked = result.mediumFreedium !== false; // Default to true
     }
-  `;
-  document.head.appendChild(style);
+  } catch (error) {
+    console.error('Error loading feature states:', error);
+  }
+}
+
+function setupFeatureToggles() {
+  // Medium Freedium toggle
+  const mediumToggle = document.getElementById('mediumFreedium');
+  if (mediumToggle) {
+    mediumToggle.addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      
+      try {
+        // Save state
+        await chrome.storage.sync.set({ mediumFreedium: enabled });
+        
+        // Send message to content script
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'toggleFeature',
+          feature: 'mediumFreedium',
+          enabled: enabled
+        }).catch(() => {
+          // Ignore if content script not ready
+        });
+        
+        // Show visual feedback
+        showFeatureFeedback('mediumFreedium', enabled);
+        
+        // Update counter
+        updateActiveCount();
+        
+        console.log('Medium Freedium feature:', enabled ? 'enabled' : 'disabled');
+      } catch (error) {
+        console.error('Error toggling Medium Freedium feature:', error);
+        // Revert toggle state on error
+        e.target.checked = !enabled;
+      }
+    });
+  }
+}
+
+function showFeatureFeedback(featureId, enabled) {
+  const toggle = document.querySelector(`#${featureId}`).closest('.feature-toggle');
   
-  document.body.appendChild(notification);
+  // Remove existing classes
+  toggle.classList.remove('success', 'error');
   
-  // Remove after 2 seconds
+  // Add success class
+  toggle.classList.add('success');
+  
+  // Remove after animation
   setTimeout(() => {
-    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-      if (style.parentNode) {
-        style.parentNode.removeChild(style);
-      }
-    }, 300);
+    toggle.classList.remove('success');
   }, 2000);
 }
+
+async function updateActiveCount() {
+  try {
+    const result = await chrome.storage.sync.get([
+      'mediumFreedium'
+    ]);
+    
+    let count = 0;
+    if (result.mediumFreedium !== false) count++; // Default to true
+    
+    document.getElementById('activeCount').textContent = count;
+  } catch (error) {
+    document.getElementById('activeCount').textContent = '?';
+  }
+}
+
+// Initialize default settings if first time
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.sync.set({
+    mediumFreedium: true // Enable by default
+  });
+});

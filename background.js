@@ -1,16 +1,17 @@
-// Background service worker for Dev Support Extension
+// Background service worker for Dev Support Extension v2.0
 
-// Extension installation/update handler
+console.log('🚀 Dev Support Extension background script loaded');
+
+// Installation/update handler
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('🚀 Dev Support Extension installed/updated:', details.reason);
+  console.log('📦 Extension installed/updated:', details.reason);
   
   if (details.reason === 'install') {
     // Set default settings on first install
     chrome.storage.sync.set({
-      autoRefresh: false,
-      refreshInterval: 30000, // 30 seconds
-      notifications: true
+      mediumFreedium: true // Enable Medium Freedium by default
     });
+    console.log('✅ Default settings initialized');
   }
 });
 
@@ -19,105 +20,66 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('📨 Background received message:', message);
   
   switch (message.action) {
-    case 'toggleDevTools':
-      handleToggleDevTools(message.tabId);
+    case 'trackEvent':
+      handleTrackEvent(message.event, message.data);
+      sendResponse({ success: true });
       break;
       
-    case 'toggleAutoRefresh':
-      handleAutoRefresh(message.enabled, message.tabId);
-      break;
-      
-    case 'getTabInfo':
-      handleGetTabInfo(sendResponse);
+    case 'getSettings':
+      handleGetSettings(sendResponse);
       return true; // Keep message channel open for async response
       
-    case 'showNotification':
-      showNotification(message.title, message.message);
-      break;
+    case 'saveSettings':
+      handleSaveSettings(message.settings, sendResponse);
+      return true; // Keep message channel open for async response
   }
 });
 
-// Auto-refresh functionality
-let autoRefreshIntervals = new Map();
-
-function handleAutoRefresh(enabled, tabId) {
-  if (enabled) {
-    // Start auto-refresh for this tab
-    const intervalId = setInterval(async () => {
-      try {
-        // Check if tab still exists
-        const tab = await chrome.tabs.get(tabId);
-        if (tab) {
-          await chrome.tabs.reload(tabId);
-          console.log(`🔄 Auto-refreshed tab ${tabId}`);
-        }
-      } catch (error) {
-        // Tab no longer exists, clear interval
-        clearInterval(intervalId);
-        autoRefreshIntervals.delete(tabId);
-        console.log(`❌ Tab ${tabId} no longer exists, stopping auto-refresh`);
-      }
-    }, 30000); // 30 seconds
-    
-    autoRefreshIntervals.set(tabId, intervalId);
-    console.log(`✅ Auto-refresh enabled for tab ${tabId}`);
-  } else {
-    // Stop auto-refresh for this tab
-    const intervalId = autoRefreshIntervals.get(tabId);
-    if (intervalId) {
-      clearInterval(intervalId);
-      autoRefreshIntervals.delete(tabId);
-      console.log(`❌ Auto-refresh disabled for tab ${tabId}`);
-    }
-  }
-}
-
-// Dev tools toggle handler
-async function handleToggleDevTools(tabId) {
-  try {
-    // Note: Chrome extensions cannot directly toggle dev tools
-    // This is a placeholder for future functionality or workarounds
-    console.log('🔧 Dev tools toggle requested for tab', tabId);
-    
-    // Alternative: Inject a script that logs useful debug info
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      function: debugInfo
+// Analytics/tracking handler
+function handleTrackEvent(event, data) {
+  console.log('📊 Tracking event:', event, data);
+  
+  // Store analytics data locally
+  chrome.storage.local.get(['analytics'], (result) => {
+    const analytics = result.analytics || [];
+    analytics.push({
+      event: event,
+      data: data,
+      timestamp: Date.now(),
+      userAgent: navigator.userAgent
     });
-  } catch (error) {
-    console.error('❌ Error toggling dev tools:', error);
+    
+    // Keep only last 100 events
+    if (analytics.length > 100) {
+      analytics.splice(0, analytics.length - 100);
+    }
+    
+    chrome.storage.local.set({ analytics });
+  });
+  
+  // Special handling for different events
+  switch (event) {
+    case 'freedium_redirect':
+      console.log('🌐 User redirected to Freedium:', data.freediumUrl);
+      break;
   }
 }
 
-// Function to inject debug information
-function debugInfo() {
-  console.group('🔧 Dev Support Debug Info');
-  console.log('📍 Current URL:', window.location.href);
-  console.log('📄 Document title:', document.title);
-  console.log('🎯 User agent:', navigator.userAgent);
-  console.log('📊 Performance:', performance.now() + 'ms since page load');
-  console.log('🎨 Viewport:', window.innerWidth + 'x' + window.innerHeight);
-  console.log('📱 Device pixel ratio:', window.devicePixelRatio);
-  console.log('🌐 Online status:', navigator.onLine);
-  console.log('🧠 Memory usage:', performance.memory || 'Not available');
-  console.groupEnd();
-}
-
-// Get tab information
-async function handleGetTabInfo(sendResponse) {
+// Settings handlers
+async function handleGetSettings(sendResponse) {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const settings = await chrome.storage.sync.get([
+      'mediumFreedium'
+    ]);
+    
     sendResponse({
       success: true,
-      data: {
-        id: tab.id,
-        url: tab.url,
-        title: tab.title,
-        status: tab.status,
-        favIconUrl: tab.favIconUrl
+      settings: {
+        mediumFreedium: settings.mediumFreedium !== false // Default to true
       }
     });
   } catch (error) {
+    console.error('❌ Error getting settings:', error);
     sendResponse({
       success: false,
       error: error.message
@@ -125,34 +87,51 @@ async function handleGetTabInfo(sendResponse) {
   }
 }
 
-// Notification handler
-function showNotification(title, message) {
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: 'icons/icon-48.png',
-    title: title,
-    message: message
-  });
+async function handleSaveSettings(settings, sendResponse) {
+  try {
+    await chrome.storage.sync.set(settings);
+    console.log('💾 Settings saved:', settings);
+    
+    sendResponse({
+      success: true
+    });
+  } catch (error) {
+    console.error('❌ Error saving settings:', error);
+    sendResponse({
+      success: false,
+      error: error.message
+    });
+  }
 }
 
-// Clean up intervals when tabs are closed
-chrome.tabs.onRemoved.addListener((tabId) => {
-  const intervalId = autoRefreshIntervals.get(tabId);
-  if (intervalId) {
-    clearInterval(intervalId);
-    autoRefreshIntervals.delete(tabId);
-    console.log(`🧹 Cleaned up auto-refresh for closed tab ${tabId}`);
-  }
-});
-
-// Handle tab updates
+// Tab update handler - reinject content script on navigation
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete') {
-    console.log('✅ Tab updated:', tab.url);
+  if (changeInfo.status === 'complete' && tab.url) {
+    // Check if this is a Medium page
+    const isMediumPage = tab.url.includes('medium.com') || 
+                        tab.url.includes('towardsdatascience.com');
+    
+    if (isMediumPage) {
+      console.log('📄 Medium page detected:', tab.url);
+      
+      // Ensure content script is loaded
+      chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        function: () => {
+          // Check if our extension is already loaded
+          if (!window.devSupportLoaded) {
+            window.devSupportLoaded = true;
+            console.log('🔄 Reloading Dev Support features');
+          }
+        }
+      }).catch(() => {
+        // Ignore errors (might be restricted page)
+      });
+    }
   }
 });
 
-// Alarm handler for scheduled tasks
+// Alarm handler for periodic cleanup
 chrome.alarms.onAlarm.addListener((alarm) => {
   console.log('⏰ Alarm triggered:', alarm.name);
   
@@ -163,19 +142,55 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// Create periodic cleanup alarm
-chrome.alarms.create('cleanup', { periodInMinutes: 60 });
+// Create periodic cleanup alarm (every 6 hours)
+chrome.alarms.create('cleanup', { periodInMinutes: 360 });
 
 // Cleanup function
 function performCleanup() {
   console.log('🧹 Performing periodic cleanup...');
   
-  // Clean up any orphaned intervals
-  autoRefreshIntervals.forEach((intervalId, tabId) => {
-    chrome.tabs.get(tabId).catch(() => {
-      clearInterval(intervalId);
-      autoRefreshIntervals.delete(tabId);
-      console.log(`🧹 Cleaned up orphaned interval for tab ${tabId}`);
-    });
+  // Clean up old analytics data
+  chrome.storage.local.get(['analytics'], (result) => {
+    const analytics = result.analytics || [];
+    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    const cleanedAnalytics = analytics.filter(item => item.timestamp > oneWeekAgo);
+    
+    if (cleanedAnalytics.length !== analytics.length) {
+      chrome.storage.local.set({ analytics: cleanedAnalytics });
+      console.log(`🗑️ Cleaned up ${analytics.length - cleanedAnalytics.length} old analytics entries`);
+    }
   });
 }
+
+// Context menu setup (optional enhancement)
+chrome.runtime.onInstalled.addListener(() => {
+  // Create context menu for Medium pages
+  chrome.contextMenus.create({
+    id: 'openInFreedium',
+    title: 'Open in Freedium (Free Access)',
+    contexts: ['page'],
+    documentUrlPatterns: [
+      '*://*.medium.com/*',
+      '*://medium.com/*',
+      '*://towardsdatascience.com/*'
+    ]
+  });
+});
+
+// Context menu click handler
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'openInFreedium') {
+    const freediumUrl = `https://freedium.cfd/${tab.url}`;
+    chrome.tabs.create({ url: freediumUrl });
+    
+    // Track the event
+    handleTrackEvent('freedium_redirect_context_menu', {
+      originalUrl: tab.url,
+      freediumUrl: freediumUrl,
+      timestamp: Date.now()
+    });
+  }
+});
+
+console.log('✅ Dev Support Extension background script initialized');

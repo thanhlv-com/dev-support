@@ -3,59 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dev Support</title>
+  <title>Dev Support Admin</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header class="header">
-      <h1>🚀 Dev Support</h1>
-      <p class="subtitle">Developer Productivity Tools</p>
+      <h1>🛠️ Dev Support</h1>
+      <p class="subtitle">Admin Panel</p>
     </header>
     
     <main class="main-content">
-      <div class="feature-section">
-        <h2>Quick Actions</h2>
-        <div class="button-grid">
-          <button id="clearConsole" class="action-btn">
-            🧹 Clear Console
-          </button>
-          <button id="refreshPage" class="action-btn">
-            🔄 Refresh Page
-          </button>
-          <button id="toggleDevTools" class="action-btn">
-            🔧 Dev Tools
-          </button>
-          <button id="exportData" class="action-btn">
-            📤 Export Data
-          </button>
+      <div class="admin-section">
+        <h2>Feature Controls</h2>
+        
+        <div class="feature-toggle">
+          <div class="feature-info">
+            <h3>🌟 Medium Freedium Redirect</h3>
+            <p class="feature-description">Adds a button on Medium pages to redirect to Freedium for free access</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="mediumFreedium" class="feature-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <!-- Placeholder for future features -->
+        <div class="feature-toggle disabled">
+          <div class="feature-info">
+            <h3>🔮 Future Feature</h3>
+            <p class="feature-description">More awesome features coming soon...</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" disabled>
+            <span class="slider"></span>
+          </label>
         </div>
       </div>
       
-      <div class="info-section">
-        <h2>Page Info</h2>
-        <div class="info-item">
-          <span class="label">URL:</span>
-          <span id="currentUrl" class="value">Loading...</span>
+      <div class="status-section">
+        <h2>Status</h2>
+        <div class="status-item">
+          <span class="status-label">Active Features:</span>
+          <span id="activeCount" class="status-value">0</span>
         </div>
-        <div class="info-item">
-          <span class="label">Title:</span>
-          <span id="pageTitle" class="value">Loading...</span>
+        <div class="status-item">
+          <span class="status-label">Current URL:</span>
+          <span id="currentUrl" class="status-value">Loading...</span>
         </div>
-      </div>
-      
-      <div class="settings-section">
-        <h2>Settings</h2>
-        <label class="toggle-label">
-          <input type="checkbox" id="autoRefresh">
-          <span class="toggle-slider"></span>
-          Auto-refresh enabled
-        </label>
       </div>
     </main>
     
     <footer class="footer">
-      <p>v1.0.0 | Made with ❤️</p>
+      <p>v2.0.0 | Feature Manager</p>
     </footer>
   </div>
   

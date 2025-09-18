@@ -1,262 +1,247 @@
-/* Content styles for Dev Support Extension */
+/* Content styles for Dev Support Extension - Medium Freedium Feature */
 
-/* Highlight styles */
-.dev-support-highlight {
-  animation: dev-support-pulse 2s infinite;
-}
-
-@keyframes dev-support-pulse {
-  0% { opacity: 0.3; }
-  50% { opacity: 0.7; }
-  100% { opacity: 0.3; }
-}
-
-/* Debug mode styles */
-.dev-support-debug-mode {
-  position: relative;
-}
-
-.dev-support-debug-mode::before {
-  content: "🔍 Debug Mode Active";
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: #ff4444;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
-  z-index: 10001;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Notification styles */
-.dev-support-notification {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 10002;
-  animation: dev-support-slide-in 0.3s ease-out;
-}
-
-@keyframes dev-support-slide-in {
+/* Floating button animations */
+@keyframes freediumFadeIn {
   from {
-    transform: translateX(100%);
     opacity: 0;
+    transform: translateY(20px) scale(0.8);
   }
   to {
-    transform: translateX(0);
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-.dev-support-notification.fade-out {
-  animation: dev-support-slide-out 0.3s ease-out forwards;
-}
-
-@keyframes dev-support-slide-out {
-  from {
-    transform: translateX(0);
-    opacity: 1;
+@keyframes freediumPulse {
+  0%, 100% { 
+    transform: scale(1); 
   }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
+  50% { 
+    transform: scale(1.05); 
   }
 }
 
-/* Console enhancement styles */
-.dev-support-console-enhancement {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+@keyframes freediumBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
 }
 
-/* Element inspector overlay */
-.dev-support-inspector-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 10003;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Main floating button */
+#dev-support-freedium-btn {
+  position: fixed !important;
+  bottom: 60px !important;
+  right: 60px !important;
+  z-index: 2147483647 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  pointer-events: auto !important;
+  animation: freediumFadeIn 0.5s ease-out;
 }
 
-.dev-support-inspector-panel {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
-  pointer-events: all;
+.freedium-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 80px !important;
+  height: 80px !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border-radius: 50% !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  flex-direction: column !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  border: none !important;
+  outline: none !important;
+  text-decoration: none !important;
 }
 
-.dev-support-inspector-panel h3 {
-  margin: 0 0 15px 0;
-  color: #333;
-  font-size: 18px;
+.freedium-button:hover {
+  box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6) !important;
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+  transform: scale(1.1) rotate(5deg) !important;
 }
 
-.dev-support-inspector-panel .property {
-  margin-bottom: 10px;
-  padding: 8px;
-  background: #f5f5f5;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
+.freedium-button:active {
+  transform: scale(0.95) !important;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3) !important;
 }
 
-.dev-support-inspector-panel .property-name {
-  font-weight: bold;
-  color: #666;
+.freedium-button svg {
+  width: 28px !important;
+  height: 28px !important;
+  margin-bottom: -2px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
-.dev-support-inspector-panel .property-value {
-  color: #333;
-  word-break: break-all;
+.freedium-text {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  text-transform: uppercase !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
 }
 
-/* Performance metrics overlay */
-.dev-support-performance-overlay {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
+/* Tooltip enhancement */
+.freedium-button::before {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  right: 50%;
+  transform: translateX(50%);
   background: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 12px;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 12px;
-  z-index: 10001;
-  min-width: 200px;
-}
-
-.dev-support-performance-overlay h4 {
-  margin: 0 0 8px 0;
-  color: #fff;
-}
-
-.dev-support-performance-overlay .metric {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.dev-support-performance-overlay .metric-name {
-  color: #ccc;
-}
-
-.dev-support-performance-overlay .metric-value {
-  color: #4CAF50;
-  font-weight: bold;
-}
-
-/* Accessibility highlights */
-.dev-support-a11y-highlight {
-  outline: 3px solid #ff9800 !important;
-  outline-offset: 2px;
-  position: relative;
-}
-
-.dev-support-a11y-highlight::after {
-  content: attr(data-a11y-issue);
-  position: absolute;
-  top: -30px;
-  left: 0;
-  background: #ff9800;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-size: 12px;
   white-space: nowrap;
-  z-index: 10001;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  z-index: 10;
 }
 
-/* Loading overlay */
-.dev-support-loading {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.95);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 10004;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.freedium-button::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 50%;
+  transform: translateX(50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.3s;
+  margin-bottom: 3px;
 }
 
-.dev-support-loading .spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e0e0e0;
-  border-top: 2px solid #667eea;
-  border-radius: 50%;
-  animation: dev-support-spin 1s linear infinite;
-}
-
-@keyframes dev-support-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.freedium-button:hover::before,
+.freedium-button:hover::after {
+  opacity: 1;
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
-  .dev-support-notification {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    width: auto;
+  #dev-support-freedium-btn {
+    bottom: 30px !important;
+    right: 30px !important;
   }
   
-  .dev-support-inspector-panel {
-    margin: 20px;
-    max-width: calc(100% - 40px);
+  .freedium-button {
+    width: 70px !important;
+    height: 70px !important;
   }
   
-  .dev-support-performance-overlay {
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
-    width: auto;
+  .freedium-button svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  
+  .freedium-text {
+    font-size: 10px !important;
   }
 }
 
-/* Dark mode support */
+@media (max-width: 480px) {
+  #dev-support-freedium-btn {
+    bottom: 20px !important;
+    right: 20px !important;
+  }
+  
+  .freedium-button {
+    width: 60px !important;
+    height: 60px !important;
+  }
+  
+  .freedium-button svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .freedium-text {
+    font-size: 9px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .freedium-button {
+    background: #000080 !important;
+    border: 2px solid #ffffff !important;
+  }
+  
+  .freedium-button:hover {
+    background: #000060 !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  #dev-support-freedium-btn {
+    animation: none !important;
+  }
+  
+  .freedium-button {
+    transition: none !important;
+  }
+  
+  .freedium-button:hover {
+    transform: none !important;
+  }
+}
+
+/* Dark mode adaptation */
 @media (prefers-color-scheme: dark) {
-  .dev-support-inspector-panel {
-    background: #2d2d2d;
-    color: #fff;
+  .freedium-button::before {
+    background: rgba(255, 255, 255, 0.9);
+    color: black;
   }
   
-  .dev-support-inspector-panel h3 {
-    color: #fff;
+  .freedium-button::after {
+    border-top-color: rgba(255, 255, 255, 0.9);
   }
-  
-  .dev-support-inspector-panel .property {
-    background: #3d3d3d;
+}
+
+/* Hide button when printing */
+@media print {
+  #dev-support-freedium-btn {
+    display: none !important;
   }
-  
-  .dev-support-inspector-panel .property-name {
-    color: #ccc;
-  }
-  
-  .dev-support-inspector-panel .property-value {
-    color: #fff;
-  }
+}
+
+/* Prevent conflicts with Medium's styles */
+#dev-support-freedium-btn * {
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Focus styles for accessibility */
+.freedium-button:focus {
+  outline: 2px solid #ffffff !important;
+  outline-offset: 2px !important;
+}
+
+.freedium-button:focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+.freedium-button:focus-visible {
+  outline: 2px solid #ffffff !important;
+  outline-offset: 2px !important;
 }

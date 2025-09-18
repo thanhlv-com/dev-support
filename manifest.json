@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Dev Support Extension",
-  "version": "1.0.0",
-  "description": "A powerful Chrome extension for developer productivity and support",
+  "version": "2.0.0",
+  "description": "Chrome extension with admin panel for managing features like Medium Freedium redirect",
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "contextMenus",
+    "alarms"
   ],
   "host_permissions": [
     "http://*/*",
