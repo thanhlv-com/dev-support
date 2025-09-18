@@ -4,6 +4,7 @@
 
 interface FeatureToggleElements {
   mediumFreedium: HTMLInputElement | null;
+  jsonViewer: HTMLInputElement | null;
 }
 
 interface StatusElements {
@@ -18,7 +19,8 @@ class PopupController {
 
   constructor() {
     this.featureToggles = {
-      mediumFreedium: null
+      mediumFreedium: null,
+      jsonViewer: null
     };
     
     this.statusElements = {
@@ -40,6 +42,7 @@ class PopupController {
   private async initializeElements(): Promise<void> {
     // Get feature toggle elements
     this.featureToggles.mediumFreedium = document.getElementById('mediumFreedium') as HTMLInputElement;
+    this.featureToggles.jsonViewer = document.getElementById('jsonViewer') as HTMLInputElement;
     
     // Get status elements
     this.statusElements.currentUrl = document.getElementById('currentUrl');
@@ -64,11 +67,14 @@ class PopupController {
 
   private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium']);
+      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']);
       
       // Set toggle states based on saved preferences
       if (this.featureToggles.mediumFreedium) {
         this.featureToggles.mediumFreedium.checked = result.mediumFreedium !== false; // Default to true
+      }
+      if (this.featureToggles.jsonViewer) {
+        this.featureToggles.jsonViewer.checked = result.jsonViewer !== false; // Default to true
       }
     } catch (error) {
       console.error('Error loading feature states:', error);
@@ -80,6 +86,13 @@ class PopupController {
     if (this.featureToggles.mediumFreedium) {
       this.featureToggles.mediumFreedium.addEventListener('change', (e) => {
         this.handleFeatureToggle('mediumFreedium', e);
+      });
+    }
+    
+    // JSON Viewer toggle
+    if (this.featureToggles.jsonViewer) {
+      this.featureToggles.jsonViewer.addEventListener('change', (e) => {
+        this.handleFeatureToggle('jsonViewer', e);
       });
     }
   }
@@ -139,10 +152,11 @@ class PopupController {
 
   private async updateActiveCount(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium']);
+      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer']);
       
       let count = 0;
       if (result.mediumFreedium !== false) count++; // Default to true
+      if (result.jsonViewer !== false) count++;     // Default to true
       
       if (this.statusElements.activeCount) {
         this.statusElements.activeCount.textContent = count.toString();
@@ -164,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Initialize default settings on extension install
 chrome.runtime.onInstalled?.addListener(() => {
   chrome.storage.sync.set({
-    mediumFreedium: true // Enable by default
+    mediumFreedium: true, // Enable by default
+    jsonViewer: true      // Enable by default
   });
 });
