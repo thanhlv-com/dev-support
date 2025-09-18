@@ -55,73 +55,34 @@
           </div>
         </div>
         
-        <!-- History Deletion Section -->
-        <div class="feature-section">
-          <h2>🗑️ History Management</h2>
+        <!-- Quick History Actions -->
+        <div class="quick-section">
+          <h2>🗑️ Quick History Actions</h2>
           
-          <div class="feature-toggle">
-            <div class="feature-info">
-              <h3>🕐 Automatic History Deletion</h3>
-              <p class="feature-description">Automatically delete browser history older than specified days</p>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="historyDeletion" class="feature-checkbox">
-              <span class="slider"></span>
-            </label>
+          <div class="quick-actions">
+            <button id="deleteAll" class="quick-btn quick-btn--danger">
+              🗑️ Delete ALL History
+            </button>
+            <button id="delete30Days" class="quick-btn quick-btn--warning">
+              🕐 Delete 30+ Days Old
+            </button>
+            <button id="delete7Days" class="quick-btn quick-btn--warning">
+              📅 Delete 7+ Days Old
+            </button>
           </div>
           
-          <div id="historyConfig" class="history-config" style="display: none;">
-            <div class="config-row">
-              <label for="retentionDays">Keep history for (days):</label>
-              <input type="number" id="retentionDays" min="0" max="365" value="30" class="config-input">
-              <small class="config-help">Set to 0 to delete ALL history</small>
+          <div class="quick-info">
+            <div class="info-icon">⚙️</div>
+            <div class="info-text">
+              <strong>Need more control?</strong> Go to Extension Settings for advanced configuration, 
+              scheduling, and exclusion patterns.
             </div>
-            
-            <div class="config-row">
-              <label for="deletionInterval">Check interval:</label>
-              <select id="deletionInterval" class="config-select">
-                <option value="daily">Daily</option>
-                <option value="weekly" selected>Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-            
-            <div class="config-row">
-              <label class="checkbox-label">
-                <input type="checkbox" id="deleteOnStartup">
-                <span>Delete on extension startup</span>
-              </label>
-            </div>
-            
-            <div class="config-row">
-              <label for="excludePatterns">Exclude URLs (one per line):</label>
-              <textarea id="excludePatterns" class="config-textarea" placeholder="google.com*&#10;github.com*&#10;stackoverflow.com*" rows="3"></textarea>
-              <small class="config-help">Use * as wildcard. Example: *.google.com</small>
-            </div>
-            
-            <div class="config-info">
-              <div class="info-icon">ℹ️</div>
-              <div class="info-text">
-                <strong>Sync Data Clearing:</strong> This feature will delete history from all your synced devices. 
-                If no exclusions are specified, bulk deletion is used for maximum efficiency.
-              </div>
-            </div>
-            
-            <div class="config-actions">
-              <button id="saveHistoryConfig" class="config-btn config-btn--primary">Save Settings</button>
-              <button id="deleteNow" class="config-btn config-btn--danger">Delete Old History Now</button>
-            </div>
-            
-            <div id="historyStats" class="history-stats">
-              <div class="stats-item">
-                <span class="stats-label">Total History Items:</span>
-                <span id="totalHistoryItems" class="stats-value">Loading...</span>
-              </div>
-              <div class="stats-item">
-                <span class="stats-label">Recent Items (30 days):</span>
-                <span id="recentHistoryItems" class="stats-value">Loading...</span>
-              </div>
-            </div>
+          </div>
+          
+          <div class="quick-actions">
+            <button id="openSettings" class="quick-btn quick-btn--secondary">
+              ⚙️ Open Settings
+            </button>
           </div>
         </div>
       </div>

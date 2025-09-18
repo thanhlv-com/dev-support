@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Support Extension - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>🛠️ Dev Support Extension</h1>
+      <p class="subtitle">Configuration & Settings</p>
+    </header>
+    
+    <main class="main-content">
+      <!-- Feature Controls Section -->
+      <section class="settings-section">
+        <h2>🎛️ Feature Controls</h2>
+        
+        <div class="feature-toggle">
+          <div class="feature-info">
+            <h3>🌟 Medium Freedium Redirect</h3>
+            <p class="feature-description">Adds a button on Medium pages to redirect to Freedium for free access</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="mediumFreedium" class="feature-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div class="feature-toggle">
+          <div class="feature-info">
+            <h3>📋 JSON Viewer</h3>
+            <p class="feature-description">Automatically formats and enhances JSON data display on API endpoints</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="jsonViewer" class="feature-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- History Management Configuration -->
+      <section class="settings-section">
+        <h2>🗑️ History Management Configuration</h2>
+        
+        <div class="feature-toggle">
+          <div class="feature-info">
+            <h3>🕐 Automatic History Deletion</h3>
+            <p class="feature-description">Automatically delete browser history based on your configured schedule</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="historyDeletion" class="feature-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div id="historyConfig" class="config-panel" style="display: none;">
+          <div class="config-grid">
+            <div class="config-item">
+              <label for="retentionDays">Keep history for (days):</label>
+              <input type="number" id="retentionDays" min="0" max="365" value="30" class="config-input">
+              <small class="config-help">Set to 0 to delete ALL history</small>
+            </div>
+            
+            <div class="config-item">
+              <label for="deletionInterval">Check interval:</label>
+              <select id="deletionInterval" class="config-select">
+                <option value="daily">Daily</option>
+                <option value="weekly" selected>Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            
+            <div class="config-item full-width">
+              <label class="checkbox-label">
+                <input type="checkbox" id="deleteOnStartup">
+                <span>Delete old history when extension starts</span>
+              </label>
+            </div>
+            
+            <div class="config-item full-width">
+              <label for="excludePatterns">Exclude URLs (one per line):</label>
+              <textarea id="excludePatterns" class="config-textarea" placeholder="google.com*&#10;github.com*&#10;stackoverflow.com*&#10;*.important-site.com" rows="4"></textarea>
+              <small class="config-help">Use * as wildcard. Example: *.google.com or github.com*</small>
+            </div>
+          </div>
+          
+          <div class="config-info">
+            <div class="info-icon">⚠️</div>
+            <div class="info-text">
+              <strong>Important:</strong> This feature will delete history from all your Chrome-synced devices. 
+              Automatic deletion uses the most efficient method available (bulk deletion when no exclusions are set).
+            </div>
+          </div>
+          
+          <div class="config-actions">
+            <button id="saveHistoryConfig" class="config-btn config-btn--primary">Save Configuration</button>
+            <button id="resetHistoryConfig" class="config-btn config-btn--secondary">Reset to Defaults</button>
+          </div>
+          
+          <div id="historyStats" class="stats-panel">
+            <h4>📊 History Statistics</h4>
+            <div class="stats-grid">
+              <div class="stats-item">
+                <span class="stats-label">Total History Items:</span>
+                <span id="totalHistoryItems" class="stats-value">Loading...</span>
+              </div>
+              <div class="stats-item">
+                <span class="stats-label">Recent Items (30 days):</span>
+                <span id="recentHistoryItems" class="stats-value">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions Info -->
+      <section class="settings-section">
+        <h2>⚡ Quick Actions</h2>
+        <div class="info-card">
+          <div class="info-icon">💡</div>
+          <div class="info-content">
+            <h3>Use the Extension Popup for Quick Actions</h3>
+            <p>Click the extension icon in your toolbar to access quick history deletion, screen capture, and other instant actions.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer class="footer">
+      <div class="footer-content">
+        <p>Dev Support Extension v2.0.0</p>
+        <div class="footer-links">
+          <button id="openPopup" class="link-btn">Open Quick Actions</button>
+          <span>•</span>
+          <a href="#" id="exportSettings" class="link-btn">Export Settings</a>
+          <span>•</span>
+          <a href="#" id="importSettings" class="link-btn">Import Settings</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+  
+  <!-- Hidden file input for import -->
+  <input type="file" id="importFile" accept=".json" style="display: none;">
+  
+  <!-- Status Messages -->
+  <div id="statusMessage" class="status-message" style="display: none;"></div>
+  
+  <script src="options.js"></script>
+</body>
+</html>

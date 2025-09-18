@@ -10,6 +10,7 @@ module.exports = (env, argv) => {
   return {
     entry: {
       popup: './src/popup.ts',
+      options: './src/options.ts',
       background: './src/background.ts',
       content: './src/content.ts'
     },
@@ -78,8 +79,16 @@ module.exports = (env, argv) => {
             to: 'popup.html'
           },
           {
+            from: 'public/options.html',
+            to: 'options.html'
+          },
+          {
             from: 'src/assets/styles/popup.css',
             to: 'popup.css'
+          },
+          {
+            from: 'src/assets/styles/options.css',
+            to: 'options.css'
           },
           {
             from: 'src/assets/styles/content.css',
