@@ -9,9 +9,9 @@ module.exports = (env, argv) => {
   
   return {
     entry: {
-      popup: './popup.js',
-      background: './background.js',
-      content: './content.js'
+      popup: './src/popup.ts',
+      background: './src/background.ts',
+      content: './src/content.ts'
     },
     
     output: {
@@ -20,8 +20,35 @@ module.exports = (env, argv) => {
       clean: true
     },
     
+    resolve: {
+      extensions: ['.ts', '.tsx', '.js', '.json'],
+      alias: {
+        '@': path.resolve(__dirname, 'src')
+      }
+    },
+    
     module: {
       rules: [
+        {
+          test: /\.tsx?$/,
+          use: {
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true
+            }
+          },
+          exclude: /node_modules/
+        },
+        {
+          test: /\.js$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-env']
+            }
+          }
+        },
         {
           test: /\.css$/,
           use: [
@@ -90,10 +117,6 @@ module.exports = (env, argv) => {
         }),
         new CssMinimizerPlugin()
       ]
-    },
-    
-    resolve: {
-      extensions: ['.js', '.json']
     },
     
     devtool: isProduction ? false : 'source-map',

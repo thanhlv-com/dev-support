@@ -1,18 +1,35 @@
-// Content script for Dev Support Extension - Medium Freedium Feature
+// Content script for Dev Support Extension - Medium Freedium Feature - TypeScript version
 
-console.log('🚀 Dev Support Extension content script loaded');
+/// <reference path="../types/global.d.ts" />
+
+interface ContentMessage extends ChromeMessage {
+  action: 'toggleFeature';
+  feature: keyof FeatureState;
+  enabled: boolean;
+}
+
+interface FreediumButtonElements {
+  container: HTMLDivElement;
+  button: HTMLDivElement;
+  styles: HTMLStyleElement;
+}
 
 class DevSupportFeatures {
+  private features: FeatureState;
+  private floatingButton: HTMLDivElement | null = null;
+  private styleElement: HTMLStyleElement | null = null;
+
   constructor() {
     this.features = {
       mediumFreedium: false
     };
-    this.floatingButton = null;
     
     this.init();
   }
-  
-  async init() {
+
+  private async init(): Promise<void> {
+    console.log('🚀 Dev Support Extension content script loaded');
+    
     // Load feature states from storage
     await this.loadFeatureStates();
     
@@ -22,10 +39,10 @@ class DevSupportFeatures {
     // Initialize features based on current page
     this.initializeFeatures();
   }
-  
-  async loadFeatureStates() {
+
+  private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium']);
+      const result = await chrome.storage.sync.get(['mediumFreedium']) as ChromeStorageResult;
       this.features.mediumFreedium = result.mediumFreedium !== false; // Default to true
       
       console.log('📋 Loaded feature states:', this.features);
@@ -35,9 +52,13 @@ class DevSupportFeatures {
       this.features.mediumFreedium = true;
     }
   }
-  
-  setupMessageListener() {
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+  private setupMessageListener(): void {
+    chrome.runtime.onMessage.addListener((
+      message: ContentMessage,
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response: { success: boolean }) => void
+    ) => {
       console.log('📨 Content script received message:', message);
       
       switch (message.action) {
@@ -48,16 +69,16 @@ class DevSupportFeatures {
       }
     });
   }
-  
-  toggleFeature(feature, enabled) {
+
+  private toggleFeature(feature: keyof FeatureState, enabled: boolean): void {
     this.features[feature] = enabled;
-    console.log(`🔄 Feature ${feature} ${enabled ? 'enabled' : 'disabled'}`);
+    console.log(`🔄 Feature ${String(feature)} ${enabled ? 'enabled' : 'disabled'}`);
     
     // Reinitialize features
     this.initializeFeatures();
   }
-  
-  initializeFeatures() {
+
+  private initializeFeatures(): void {
     // Medium Freedium feature
     if (this.features.mediumFreedium && this.isMediumPage()) {
       this.initMediumFreedium();
@@ -65,16 +86,16 @@ class DevSupportFeatures {
       this.removeMediumFreedium();
     }
   }
-  
-  isMediumPage() {
+
+  private isMediumPage(): boolean {
     const hostname = window.location.hostname;
     return hostname === 'medium.com' || 
            hostname.endsWith('.medium.com') ||
            hostname === 'towardsdatascience.com' ||
            hostname === 'blog.medium.com';
   }
-  
-  initMediumFreedium() {
+
+  private initMediumFreedium(): void {
     console.log('🌟 Initializing Medium Freedium feature');
     
     // Remove existing button if any
@@ -83,29 +104,25 @@ class DevSupportFeatures {
     // Create floating button
     this.createFreediumButton();
   }
-  
-  removeMediumFreedium() {
+
+  private removeMediumFreedium(): void {
     if (this.floatingButton) {
       this.floatingButton.remove();
       this.floatingButton = null;
       console.log('🗑️ Removed Freedium button');
     }
+
+    if (this.styleElement) {
+      this.styleElement.remove();
+      this.styleElement = null;
+    }
   }
-  
-  createFreediumButton() {
+
+  private createFreediumButton(): void {
     // Create the floating button
     this.floatingButton = document.createElement('div');
     this.floatingButton.id = 'dev-support-freedium-btn';
-    this.floatingButton.innerHTML = `
-      <div class="freedium-button" title="Open in Freedium (Free Access)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
-        <span class="freedium-text">Free</span>
-      </div>
-    `;
+    this.floatingButton.innerHTML = this.getButtonHTML();
     
     // Add styles
     this.addFreediumStyles();
@@ -121,8 +138,33 @@ class DevSupportFeatures {
       animation: freediumFadeIn 0.5s ease-out;
     `;
     
+    // Add event listeners
+    this.setupButtonEventListeners();
+    
+    // Add to page
+    document.body.appendChild(this.floatingButton);
+    
+    console.log('✨ Freedium button created and added to page');
+  }
+
+  private getButtonHTML(): string {
+    return `
+      <div class="freedium-button" title="Open in Freedium (Free Access)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span class="freedium-text">Free</span>
+      </div>
+    `;
+  }
+
+  private setupButtonEventListeners(): void {
+    if (!this.floatingButton) return;
+
     // Add click handler
-    this.floatingButton.addEventListener('click', (e) => {
+    this.floatingButton.addEventListener('click', (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       this.openInFreedium();
@@ -130,28 +172,33 @@ class DevSupportFeatures {
     
     // Add hover effects
     this.floatingButton.addEventListener('mouseenter', () => {
-      this.floatingButton.style.transform = 'scale(1.1) rotate(5deg)';
+      if (this.floatingButton) {
+        this.floatingButton.style.transform = 'scale(1.1) rotate(5deg)';
+      }
     });
     
     this.floatingButton.addEventListener('mouseleave', () => {
-      this.floatingButton.style.transform = 'scale(1) rotate(0deg)';
+      if (this.floatingButton) {
+        this.floatingButton.style.transform = 'scale(1) rotate(0deg)';
+      }
     });
-    
-    // Add to page
-    document.body.appendChild(this.floatingButton);
-    
-    console.log('✨ Freedium button created and added to page');
   }
-  
-  addFreediumStyles() {
+
+  private addFreediumStyles(): void {
     // Check if styles already exist
     if (document.getElementById('dev-support-freedium-styles')) {
       return;
     }
     
-    const style = document.createElement('style');
-    style.id = 'dev-support-freedium-styles';
-    style.textContent = `
+    this.styleElement = document.createElement('style');
+    this.styleElement.id = 'dev-support-freedium-styles';
+    this.styleElement.textContent = this.getFreediumStyles();
+    
+    document.head.appendChild(this.styleElement);
+  }
+
+  private getFreediumStyles(): string {
+    return `
       @keyframes freediumFadeIn {
         from {
           opacity: 0;
@@ -233,18 +280,18 @@ class DevSupportFeatures {
         z-index: 2147483647 !important;
       }
     `;
-    
-    document.head.appendChild(style);
   }
-  
-  openInFreedium() {
+
+  private openInFreedium(): void {
     const currentUrl = window.location.href;
     const freediumUrl = `https://freedium.cfd/${currentUrl}`;
     
     console.log('🌐 Opening in Freedium:', freediumUrl);
     
     // Add click animation
-    this.floatingButton.style.animation = 'freediumPulse 0.3s ease-out';
+    if (this.floatingButton) {
+      this.floatingButton.style.animation = 'freediumPulse 0.3s ease-out';
+    }
     
     // Open in new tab
     window.open(freediumUrl, '_blank', 'noopener,noreferrer');
@@ -257,41 +304,54 @@ class DevSupportFeatures {
     }, 300);
     
     // Send analytics
+    this.trackFreediumUsage(currentUrl, freediumUrl);
+  }
+
+  private trackFreediumUsage(originalUrl: string, freediumUrl: string): void {
     try {
       chrome.runtime.sendMessage({
         action: 'trackEvent',
         event: 'freedium_redirect',
         data: {
-          originalUrl: currentUrl,
+          originalUrl: originalUrl,
           freediumUrl: freediumUrl,
           timestamp: Date.now()
-        }
+        } as AnalyticsData
       });
     } catch (error) {
       // Ignore if background script not available
+      console.log('Background script not available for analytics');
     }
   }
 }
 
 // Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+function initializeDevSupport(): void {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new DevSupportFeatures();
+    });
+  } else {
     new DevSupportFeatures();
-  });
-} else {
-  new DevSupportFeatures();
+  }
 }
 
 // Handle page navigation (for SPAs)
-let lastUrl = location.href;
-new MutationObserver(() => {
-  const url = location.href;
-  if (url !== lastUrl) {
-    lastUrl = url;
-    console.log('🔄 Page navigation detected, reinitializing features');
-    // Small delay to let the page settle
-    setTimeout(() => {
-      new DevSupportFeatures();
-    }, 1000);
-  }
-}).observe(document, { subtree: true, childList: true });
+function setupNavigationHandler(): void {
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+      lastUrl = url;
+      console.log('🔄 Page navigation detected, reinitializing features');
+      // Small delay to let the page settle
+      setTimeout(() => {
+        new DevSupportFeatures();
+      }, 1000);
+    }
+  }).observe(document, { subtree: true, childList: true });
+}
+
+// Initialize everything
+initializeDevSupport();
+setupNavigationHandler();
