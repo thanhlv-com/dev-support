@@ -24,7 +24,7 @@
     },
     "typeRoots": [
       "node_modules/@types",
-      "./types"
+      "./src/types"
     ],
     "types": [
       "chrome"
@@ -33,7 +33,7 @@
   "include": [
     "src/**/*",
     "*.ts",
-    "types/**/*.d.ts"
+    "src/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

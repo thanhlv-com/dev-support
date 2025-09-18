@@ -70,23 +70,23 @@ module.exports = (env, argv) => {
       new CopyWebpackPlugin({
         patterns: [
           {
-            from: 'manifest.json',
+            from: 'public/manifest.json',
             to: 'manifest.json'
           },
           {
-            from: 'popup.html',
+            from: 'public/popup.html',
             to: 'popup.html'
           },
           {
-            from: 'popup.css',
+            from: 'src/assets/styles/popup.css',
             to: 'popup.css'
           },
           {
-            from: 'content.css',
+            from: 'src/assets/styles/content.css',
             to: 'content.css'
           },
           {
-            from: 'icons',
+            from: 'public/icons',
             to: 'icons',
             noErrorOnMissing: true
           }

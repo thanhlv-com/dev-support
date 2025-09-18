@@ -15,8 +15,8 @@
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
     "test": "echo \"No tests specified\" && exit 0",
-    "icons:convert": "cd icons && ./convert-to-png.sh",
-    "icons:preview": "cd icons && node convert-online.js && open icon-preview.html"
+    "icons:convert": "cd tools/icons && ./convert-to-png.sh",
+    "icons:preview": "cd tools/icons && node convert-online.js && open icon-preview.html"
   },
   "keywords": [
     "chrome-extension",
@@ -31,6 +31,8 @@
     "@babel/core": "^7.28.4",
     "@babel/preset-env": "^7.28.3",
     "@types/chrome": "^0.1.12",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
     "babel-loader": "^10.0.0",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.8.1",

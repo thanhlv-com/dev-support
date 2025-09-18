@@ -7,16 +7,23 @@ module.exports = {
   extends: [
     'eslint:recommended'
   ],
+  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module'
   },
+  plugins: [
+    '@typescript-eslint'
+  ],
   globals: {
     chrome: 'readonly'
   },
   rules: {
     'no-console': 'off',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'no-undef': 'off',
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-unused-vars': 'off',
     'prefer-const': 'error',
     'no-var': 'error',
     'object-shorthand': 'error',

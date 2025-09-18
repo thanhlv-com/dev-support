@@ -1,6 +1,6 @@
 // Content script for Dev Support Extension - Medium Freedium Feature - TypeScript version
 
-/// <reference path="../types/global.d.ts" />
+/// <reference path="types/global.d.ts" />
 
 interface ContentMessage extends ChromeMessage {
   action: 'toggleFeature';
@@ -313,8 +313,8 @@ class DevSupportFeatures {
         action: 'trackEvent',
         event: 'freedium_redirect',
         data: {
-          originalUrl: originalUrl,
-          freediumUrl: freediumUrl,
+          originalUrl,
+          freediumUrl,
           timestamp: Date.now()
         } as AnalyticsData
       });

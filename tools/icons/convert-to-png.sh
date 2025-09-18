@@ -41,18 +41,18 @@ convert_svg_to_png() {
 }
 
 # Convert each icon size
-convert_svg_to_png "icon-16.svg" "icon-16.png" 16
-convert_svg_to_png "icon-32.svg" "icon-32.png" 32
-convert_svg_to_png "icon-48.svg" "icon-48.png" 48
-convert_svg_to_png "icon-128.svg" "icon-128.png" 128
+convert_svg_to_png "../../public/icons/icon-16.svg" "../../public/icons/icon-16.png" 16
+convert_svg_to_png "../../public/icons/icon-32.svg" "../../public/icons/icon-32.png" 32
+convert_svg_to_png "../../public/icons/icon-48.svg" "../../public/icons/icon-48.png" 48
+convert_svg_to_png "../../public/icons/icon-128.svg" "../../public/icons/icon-128.png" 128
 
 # Create additional standard sizes that might be needed
 echo ""
 echo "Creating additional standard sizes from base SVGs..."
-convert_svg_to_png "icon-16.svg" "icon-19.png" 19   # Toolbar icon
-convert_svg_to_png "icon-32.svg" "icon-38.png" 38   # Toolbar icon @2x
-convert_svg_to_png "icon-16.svg" "icon-24.png" 24   # Menu icon
-convert_svg_to_png "icon-32.svg" "icon-64.png" 64   # Store listing
+convert_svg_to_png "../../public/icons/icon-16.svg" "../../public/icons/icon-19.png" 19   # Toolbar icon
+convert_svg_to_png "../../public/icons/icon-32.svg" "../../public/icons/icon-38.png" 38   # Toolbar icon @2x
+convert_svg_to_png "../../public/icons/icon-16.svg" "../../public/icons/icon-24.png" 24   # Menu icon
+convert_svg_to_png "../../public/icons/icon-32.svg" "../../public/icons/icon-64.png" 64   # Store listing
 
 echo ""
 echo "✅ Icon conversion completed!"

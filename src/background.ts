@@ -1,6 +1,6 @@
 // Background service worker for Dev Support Extension v2.0 - TypeScript version
 
-/// <reference path="../types/global.d.ts" />
+/// <reference path="types/global.d.ts" />
 
 interface BackgroundMessage extends ChromeMessage {
   action: 'trackEvent' | 'getSettings' | 'saveSettings';
@@ -91,7 +91,7 @@ class BackgroundController {
           
           // Ensure content script is loaded
           chrome.scripting.executeScript({
-            target: { tabId: tabId },
+            target: { tabId },
             func: () => {
               // Check if our extension is already loaded
               if (!window.devSupportLoaded) {
@@ -143,7 +143,7 @@ class BackgroundController {
         // Track the event
         this.handleTrackEvent('freedium_redirect_context_menu', {
           originalUrl: tab.url,
-          freediumUrl: freediumUrl,
+          freediumUrl,
           timestamp: Date.now()
         });
       }
@@ -157,8 +157,8 @@ class BackgroundController {
     chrome.storage.local.get(['analytics'], (result) => {
       const analytics: ChromeAnalyticsEvent[] = result.analytics || [];
       analytics.push({
-        event: event,
-        data: data,
+        event,
+        data,
         timestamp: Date.now(),
         userAgent: navigator.userAgent
       });

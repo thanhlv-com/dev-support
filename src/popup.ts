@@ -1,6 +1,6 @@
 // Popup script for Dev Support Extension - TypeScript version
 
-/// <reference path="../types/global.d.ts" />
+/// <reference path="types/global.d.ts" />
 
 interface FeatureToggleElements {
   mediumFreedium: HTMLInputElement | null;
@@ -97,8 +97,8 @@ class PopupController {
         try {
           await chrome.tabs.sendMessage(this.currentTab.id, {
             action: 'toggleFeature',
-            feature: feature,
-            enabled: enabled
+            feature,
+            enabled
           });
         } catch (error) {
           // Ignore if content script not ready
