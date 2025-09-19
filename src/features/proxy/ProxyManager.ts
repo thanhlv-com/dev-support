@@ -29,6 +29,9 @@ class ProxyManager {
     console.log('🌐 ProxyManager initializing...');
     await this.loadConfiguration();
     
+    // Setup authentication handlers
+    this.setupAuthenticationHandlers();
+    
     // Apply configuration if enabled
     if (this.proxyConfig && this.proxyConfig.enabled) {
       console.log('🔧 Applying existing proxy configuration on startup...');
@@ -59,6 +62,10 @@ class ProxyManager {
     try {
       await chrome.storage.sync.set({ proxyConfig: config });
       this.proxyConfig = config;
+      
+      // Re-setup authentication handlers with new configuration
+      this.clearAuthenticationHandlers();
+      this.setupAuthenticationHandlers();
       
       if (config.enabled) {
         await this.applyProxyConfiguration();
@@ -371,6 +378,9 @@ function FindProxyForURL(url, host) {
         await chrome.proxy.settings.clear({ scope: 'regular' });
         console.log('🧹 Proxy configuration cleared');
       }
+      
+      // Also clear authentication handlers when proxy is disabled
+      this.clearAuthenticationHandlers();
     } catch (error) {
       console.error('❌ Error clearing proxy configuration:', error);
       throw error;
@@ -611,6 +621,109 @@ function FindProxyForURL(url, host) {
     }
 
     return true;
+  }
+
+  // Authentication handling methods
+  private setupAuthenticationHandlers(): void {
+    if (!chrome.webRequest) {
+      console.warn('⚠️ webRequest API not available - proxy authentication will require manual input');
+      return;
+    }
+
+    console.log('🔐 Setting up proxy authentication handlers...');
+
+    // Handle authentication challenges
+    chrome.webRequest.onAuthRequired.addListener(
+      this.handleAuthRequired.bind(this),
+      { urls: ['<all_urls>'] },
+      ['blocking']
+    );
+
+    console.log('✅ Proxy authentication handlers configured');
+  }
+
+  private handleAuthRequired(
+    details: chrome.webRequest.WebAuthenticationChallengeDetails
+  ): chrome.webRequest.BlockingResponse | undefined {
+    console.log('🔐 Authentication challenge received:', {
+      url: details.url,
+      challenger: details.challenger,
+      scheme: details.scheme,
+      realm: details.realm
+    });
+
+    // Only handle proxy authentication challenges
+    if (details.challenger?.host && details.challenger?.port) {
+      const proxyHost = details.challenger.host;
+      const proxyPort = details.challenger.port;
+      
+      console.log(`🔍 Looking for credentials for proxy ${proxyHost}:${proxyPort}`);
+      
+      // Find matching proxy rule with credentials
+      const credentials = this.findProxyCredentials(proxyHost, proxyPort);
+      
+      if (credentials) {
+        console.log(`✅ Found credentials for proxy ${proxyHost}:${proxyPort}, username: ${credentials.username}`);
+        
+        return {
+          authCredentials: {
+            username: credentials.username,
+            password: credentials.password
+          }
+        };
+      } else {
+        console.log(`❌ No credentials found for proxy ${proxyHost}:${proxyPort}`);
+      }
+    }
+
+    // Let browser handle if no credentials found
+    return {};
+  }
+
+  private findProxyCredentials(host: string, port: number): { username: string; password: string } | null {
+    if (!this.proxyConfig) {
+      return null;
+    }
+
+    // Check global proxy first
+    if (this.proxyConfig.globalProxy && 
+        this.proxyConfig.globalProxy.enabled &&
+        this.proxyConfig.globalProxy.host === host &&
+        this.proxyConfig.globalProxy.port === port &&
+        this.proxyConfig.globalProxy.username &&
+        this.proxyConfig.globalProxy.password) {
+      
+      console.log('🌐 Using global proxy credentials');
+      return {
+        username: this.proxyConfig.globalProxy.username,
+        password: this.proxyConfig.globalProxy.password
+      };
+    }
+
+    // Check specific rules
+    for (const rule of this.proxyConfig.rules) {
+      if (rule.enabled &&
+          rule.host === host &&
+          rule.port === port &&
+          rule.username &&
+          rule.password) {
+        
+        console.log(`📋 Using rule credentials: ${rule.name}`);
+        return {
+          username: rule.username,
+          password: rule.password
+        };
+      }
+    }
+
+    return null;
+  }
+
+  public clearAuthenticationHandlers(): void {
+    if (chrome.webRequest && chrome.webRequest.onAuthRequired.hasListener(this.handleAuthRequired)) {
+      chrome.webRequest.onAuthRequired.removeListener(this.handleAuthRequired);
+      console.log('🧹 Proxy authentication handlers cleared');
+    }
   }
 }
 

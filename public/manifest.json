@@ -13,12 +13,15 @@
     "scripting",
     "downloads",
     "history",
-    "proxy"
+    "proxy",
+    "webRequest",
+    "webRequestAuthProvider"
   ],
   "host_permissions": [
     "https://medium.com/*",
     "http://medium.com/*",
-    "https://thanhlv.com/*"
+    "https://thanhlv.com/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"

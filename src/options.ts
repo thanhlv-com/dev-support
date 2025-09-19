@@ -1032,13 +1032,20 @@ class OptionsController {
         debugInfo += '3. Open browser developer tools (F12) → Console tab\n';
         debugInfo += '4. Visit a domain that matches your proxy rules\n';
         debugInfo += '5. Look for [PAC] messages showing domain matching and proxy decisions\n';
-        debugInfo += '6. Check Network tab - requests should show proxy indicator\n';
-        debugInfo += '7. Visit httpbin.org/ip to see your IP (should show proxy IP if working)\n\n';
+        debugInfo += '6. Look for 🔐 messages showing authentication handling\n';
+        debugInfo += '7. Check Network tab - requests should show proxy indicator\n';
+        debugInfo += '8. Visit httpbin.org/ip to see your IP (should show proxy IP if working)\n\n';
         debugInfo += '⚠️ COMMON ISSUES:\n';
         debugInfo += '• Mode is "direct": Extension not controlling proxy (check for errors)\n';
         debugInfo += '• Mode is "system": Chrome using system proxy instead\n';
         debugInfo += '• No [PAC] messages: PAC script not loaded or has errors\n';
+        debugInfo += '• No 🔐 messages: webRequest API not working or no auth challenges\n';
         debugInfo += '• Other extension controlling: Disable other proxy extensions\n\n';
+        debugInfo += '🔐 AUTHENTICATION FEATURES:\n';
+        debugInfo += '• Extension now automatically handles proxy authentication\n';
+        debugInfo += '• No more browser password prompts for configured proxies\n';
+        debugInfo += '• Username/password from your proxy rules are used automatically\n';
+        debugInfo += '• Check browser console for 🔐 authentication debug messages\n\n';
         debugInfo += 'Example test: Rule for *.httpbin.org → visit httpbin.org/ip';
 
         // Create a modal or alert to show debug info
