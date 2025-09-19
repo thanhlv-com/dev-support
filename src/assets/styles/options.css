@@ -454,49 +454,242 @@ input:checked + .slider:before {
   }
 }
 
-/* Dark mode support */
+/* Beautiful Dark Mode - High Contrast & Modern */
 @media (prefers-color-scheme: dark) {
+  :root {
+    /* Modern Dark Theme Colors */
+    --dark-bg-primary: #0d1117;      /* GitHub dark background */
+    --dark-bg-secondary: #161b22;    /* Slightly lighter panels */
+    --dark-bg-tertiary: #21262d;     /* Cards and elevated surfaces */
+    --dark-bg-hover: #30363d;        /* Hover states */
+    --dark-bg-active: #282e36;       /* Active states */
+    
+    /* Text Colors - High Contrast */
+    --dark-text-primary: #f0f6fc;    /* Primary text - very high contrast */
+    --dark-text-secondary: #e6edf3;  /* Secondary text - high contrast */
+    --dark-text-muted: #9198a1;      /* Muted text - still readable */
+    --dark-text-subtle: #6e7681;     /* Subtle text */
+    
+    /* Border Colors */
+    --dark-border-primary: #30363d;  /* Primary borders */
+    --dark-border-secondary: #21262d; /* Secondary borders */
+    --dark-border-muted: #373e47;    /* Muted borders */
+    
+    /* Accent Colors - Modern & Vibrant */
+    --dark-accent-primary: #58a6ff;  /* Primary blue - accessible */
+    --dark-accent-success: #3fb950;  /* Success green */
+    --dark-accent-warning: #d29922;  /* Warning orange */
+    --dark-accent-danger: #f85149;   /* Danger red */
+    --dark-accent-purple: #a5a5ff;   /* Purple accent */
+    
+    /* Interactive Colors */
+    --dark-btn-primary-bg: #238636;  /* Primary button */
+    --dark-btn-primary-hover: #2ea043;
+    --dark-btn-secondary-bg: #21262d;
+    --dark-btn-secondary-hover: #30363d;
+  }
+
   body {
-    background: #1a1a1a;
-    color: #e0e0e0;
+    background: var(--dark-bg-primary);
+    color: var(--dark-text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   
   .container {
-    background: #2d2d2d;
+    background: var(--dark-bg-secondary);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
   }
   
+  /* Header Dark Mode */
+  .header {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    border-bottom: 1px solid var(--dark-border-primary);
+  }
+  
+  .header h1 {
+    color: var(--dark-text-primary);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .subtitle {
+    color: var(--dark-text-secondary);
+    opacity: 0.9;
+  }
+  
+  /* Section Headers */
+  .settings-section h2 {
+    color: var(--dark-text-primary);
+    border-bottom: 2px solid var(--dark-border-primary);
+    padding-bottom: 8px;
+  }
+  
+  /* Feature Toggles - Beautiful Cards */
   .feature-toggle {
-    background: #3a3a3a;
-    border-color: #555;
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
   }
   
   .feature-toggle:hover {
-    background: #404040;
-    border-color: #666;
+    background: var(--dark-bg-hover);
+    border-color: var(--dark-border-muted);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
   }
   
-  .config-panel,
-  .stats-item {
-    background: #3a3a3a;
-    border-color: #555;
+  .feature-info h3 {
+    color: var(--dark-text-primary);
   }
   
+  .feature-description {
+    color: var(--dark-text-muted);
+  }
+  
+  /* Config Panels */
+  .config-panel {
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  
+  /* Form Elements - High Contrast */
   .config-input,
   .config-select,
   .config-textarea {
-    background: #2d2d2d;
-    border-color: #555;
-    color: #e0e0e0;
+    background: var(--dark-bg-primary);
+    border: 1px solid var(--dark-border-muted);
+    color: var(--dark-text-primary);
+    transition: all 0.2s ease;
   }
   
+  .config-input:focus,
+  .config-select:focus,
+  .config-textarea:focus {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-accent-primary);
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+    outline: none;
+  }
+  
+  .config-input::placeholder,
+  .config-textarea::placeholder {
+    color: var(--dark-text-subtle);
+  }
+  
+  /* Labels */
+  .config-item label {
+    color: var(--dark-text-secondary);
+    font-weight: 500;
+  }
+  
+  .config-help {
+    color: var(--dark-text-subtle);
+  }
+  
+  /* Buttons - Beautiful & Accessible */
+  .config-btn--primary {
+    background: var(--dark-btn-primary-bg);
+    border-color: var(--dark-btn-primary-bg);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .config-btn--primary:hover {
+    background: var(--dark-btn-primary-hover);
+    border-color: var(--dark-btn-primary-hover);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  .config-btn--secondary {
+    background: var(--dark-btn-secondary-bg);
+    border-color: var(--dark-border-muted);
+    color: var(--dark-text-secondary);
+  }
+  
+  .config-btn--secondary:hover {
+    background: var(--dark-btn-secondary-hover);
+    border-color: var(--dark-border-primary);
+    color: var(--dark-text-primary);
+  }
+  
+  .config-btn--danger {
+    background: var(--dark-accent-danger);
+    border-color: var(--dark-accent-danger);
+    color: white;
+  }
+  
+  .config-btn--danger:hover {
+    background: #ff6b6b;
+    border-color: #ff6b6b;
+    box-shadow: 0 4px 8px rgba(248, 81, 73, 0.3);
+  }
+  
+  /* Stats Panel */
   .stats-panel {
-    background: #3a3a3a;
-    border-color: #555;
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
   }
   
+  .stats-item {
+    background: var(--dark-bg-secondary);
+    border: 1px solid var(--dark-border-secondary);
+  }
+  
+  .stats-label {
+    color: var(--dark-text-muted);
+  }
+  
+  .stats-value {
+    color: var(--dark-accent-primary);
+    font-weight: 700;
+  }
+  
+  /* Info Cards */
+  .info-card {
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+  }
+  
+  .info-content h3 {
+    color: var(--dark-text-primary);
+  }
+  
+  .info-content p {
+    color: var(--dark-text-muted);
+  }
+  
+  /* Footer */
   .footer {
-    background: #3a3a3a;
-    border-color: #555;
+    background: var(--dark-bg-tertiary);
+    border-top: 1px solid var(--dark-border-primary);
+  }
+  
+  .footer-content {
+    color: var(--dark-text-muted);
+  }
+  
+  .link-btn {
+    color: var(--dark-accent-primary);
+  }
+  
+  .link-btn:hover {
+    color: var(--dark-accent-purple);
+  }
+  
+  /* Toggle Switch Dark Mode */
+  .toggle-switch .slider {
+    background-color: var(--dark-border-muted);
+  }
+  
+  .toggle-switch input:checked + .slider {
+    background-color: var(--dark-accent-primary);
+  }
+  
+  .toggle-switch .slider:before {
+    background-color: var(--dark-text-primary);
   }
 }
 
@@ -751,57 +944,146 @@ input:checked + .slider:before {
   }
 }
 
-/* Dark mode proxy styles */
+/* Dark mode proxy styles - Modern & Beautiful */
 @media (prefers-color-scheme: dark) {
   .proxy-section {
-    border-color: #555;
+    border-color: var(--dark-border-primary);
+  }
+  
+  .proxy-section h4 {
+    color: var(--dark-text-primary);
   }
   
   .proxy-config-form {
-    background: #3a3a3a;
-    border-color: #555;
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  
+  .proxy-rules-header {
+    border-bottom: 1px solid var(--dark-border-secondary);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
   }
   
   .proxy-rule {
-    background: #3a3a3a;
-    border-color: #555;
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+  }
+  
+  .proxy-rule:hover {
+    border-color: var(--dark-border-muted);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
   }
   
   .proxy-rule-header {
-    background: #2d2d2d;
-    border-color: #555;
+    background: var(--dark-bg-secondary);
+    border-bottom: 1px solid var(--dark-border-secondary);
   }
   
   .rule-name {
-    color: #e0e0e0;
+    color: var(--dark-text-primary);
+    background: transparent;
+    font-weight: 600;
   }
   
   .rule-name:focus {
-    background: #404040;
+    background: var(--dark-bg-hover);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    border-radius: 4px;
   }
   
-  .pattern-examples {
-    background: #2d4a5a;
-    border-left-color: #667eea;
+  .proxy-rule-config {
+    background: var(--dark-bg-tertiary);
   }
   
+  /* Proxy Type Badges - Modern Colors */
   .proxy-type-badge.http {
-    background: #1a237e;
-    color: #bbdefb;
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
   .proxy-type-badge.https {
-    background: #1b5e20;
-    color: #c8e6c9;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
   .proxy-type-badge.socks4 {
-    background: #e65100;
-    color: #ffcc02;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
   .proxy-type-badge.socks5 {
-    background: #880e4f;
-    color: #f8bbd9;
+    background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Pattern Examples Box */
+  .pattern-examples {
+    background: var(--dark-bg-secondary);
+    border: 1px solid var(--dark-border-muted);
+    border-left: 4px solid var(--dark-accent-primary);
+  }
+  
+  .pattern-examples h5 {
+    color: var(--dark-text-primary);
+  }
+  
+  .pattern-examples ul {
+    color: var(--dark-text-muted);
+  }
+  
+  /* Proxy Status Indicators */
+  .proxy-status.connected {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--dark-accent-success);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+  }
+  
+  .proxy-status.disconnected {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--dark-accent-danger);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+  }
+  
+  .proxy-status.testing {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--dark-accent-warning);
+    border: 1px solid rgba(210, 153, 34, 0.3);
+  }
+  
+  /* Proxy Actions */
+  .proxy-actions-section {
+    border-top: 1px solid var(--dark-border-primary);
+    background: var(--dark-bg-secondary);
+  }
+  
+  /* Enhanced Status Messages for Dark Mode */
+  .status-message.success {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--dark-accent-success);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    backdrop-filter: blur(10px);
+  }
+  
+  .status-message.error {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--dark-accent-danger);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    backdrop-filter: blur(10px);
+  }
+  
+  .status-message.info {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--dark-accent-primary);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    backdrop-filter: blur(10px);
   }
 }
