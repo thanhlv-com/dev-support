@@ -3,9 +3,10 @@
 /// <reference path="types/global.d.ts" />
 
 import ProxyManager from './features/proxy/ProxyManager';
+import { StorageManager } from './features/cookie-manager/CookieManager';
 
 interface BackgroundMessage extends ChromeMessage {
-  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection';
+  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection' | 'exportStorage' | 'importStorage' | 'clearStorage' | 'getStorageCount' | 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount';
   event?: string;
   data?: any;
   settings?: ExtensionSettings;
@@ -14,6 +15,10 @@ interface BackgroundMessage extends ChromeMessage {
   proxyConfig?: ProxyConfiguration;
   proxyRule?: ProxyRule;
   testUrl?: string;
+  url?: string;
+  tabId?: number;
+  storageData?: StorageExport;
+  cookieData?: CookieExport;
 }
 
 interface BackgroundResponse {
@@ -27,9 +32,11 @@ interface BackgroundResponse {
 
 class BackgroundController {
   private proxyManager: ProxyManager;
+  private storageManager: StorageManager;
 
   constructor() {
     this.proxyManager = ProxyManager.getInstance();
+    this.storageManager = StorageManager.getInstance();
     this.init();
   }
 
@@ -142,6 +149,63 @@ class BackgroundController {
         case 'testProxyConnection':
           if (message.proxyRule) {
             this.handleTestProxyConnection(message.proxyRule, message.testUrl, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'exportStorage':
+          if (message.url) {
+            this.handleExportStorage(message.url, message.tabId, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'importStorage':
+          if (message.storageData) {
+            this.handleImportStorage(message.storageData, message.tabId, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'clearStorage':
+          if (message.url) {
+            this.handleClearStorage(message.url, message.tabId, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'getStorageCount':
+          if (message.url) {
+            this.handleGetStorageCount(message.url, message.tabId, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        // Legacy cookie handlers for backward compatibility
+        case 'exportCookies':
+          if (message.url) {
+            this.handleExportCookies(message.url, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'importCookies':
+          if (message.cookieData) {
+            this.handleImportCookies(message.cookieData, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'clearCookies':
+          if (message.url) {
+            this.handleClearCookies(message.url, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+
+        case 'getCookieCount':
+          if (message.url) {
+            this.handleGetCookieCount(message.url, sendResponse);
             return true; // Keep message channel open for async response
           }
           break;
@@ -1128,6 +1192,247 @@ class BackgroundController {
       await this.proxyManager.initialize();
     } catch (error) {
       console.error('❌ Error initializing proxy configuration:', error);
+    }
+  }
+
+  // Storage management handlers (new)
+  private async handleExportStorage(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      console.log('💾 [BACKGROUND] Starting storage export for URL:', url, 'tabId:', tabId);
+      
+      // Validate URL
+      if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL provided for storage export');
+      }
+      
+      // Check if URL is a valid web URL
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        throw new Error('Storage export is only supported for HTTP/HTTPS URLs');
+      }
+      
+      const storageExport = await this.storageManager.exportStorage(url, tabId);
+      console.log('💾 [BACKGROUND] Storage export successful:', storageExport.domain, 
+        `(${storageExport.cookies.length} cookies, ${Object.keys(storageExport.localStorage).length} localStorage, ${Object.keys(storageExport.sessionStorage).length} sessionStorage)`);
+      
+      sendResponse({
+        success: true,
+        data: storageExport
+      });
+
+      // Track the event
+      this.handleTrackEvent('storage_exported', {
+        domain: storageExport.domain,
+        cookieCount: storageExport.cookies.length,
+        localStorageCount: Object.keys(storageExport.localStorage).length,
+        sessionStorageCount: Object.keys(storageExport.sessionStorage).length,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ [BACKGROUND] Error exporting storage:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleImportStorage(storageData: StorageExport, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      await this.storageManager.importStorage(storageData, tabId);
+      sendResponse({
+        success: true,
+        data: {
+          domain: storageData.domain,
+          cookieCount: storageData.cookies.length,
+          localStorageCount: Object.keys(storageData.localStorage).length,
+          sessionStorageCount: Object.keys(storageData.sessionStorage).length
+        }
+      });
+
+      // Track the event
+      this.handleTrackEvent('storage_imported', {
+        domain: storageData.domain,
+        cookieCount: storageData.cookies.length,
+        localStorageCount: Object.keys(storageData.localStorage).length,
+        sessionStorageCount: Object.keys(storageData.sessionStorage).length,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ [BACKGROUND] Error importing storage:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleClearStorage(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const result = await this.storageManager.clearStorage(url, tabId);
+      const urlObj = new URL(url);
+      
+      sendResponse({
+        success: true,
+        data: {
+          domain: urlObj.hostname,
+          ...result
+        }
+      });
+
+      // Track the event
+      this.handleTrackEvent('storage_cleared', {
+        domain: urlObj.hostname,
+        ...result,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ [BACKGROUND] Error clearing storage:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleGetStorageCount(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const counts = await this.storageManager.getStorageCount(url, tabId);
+      const urlObj = new URL(url);
+      
+      sendResponse({
+        success: true,
+        data: {
+          domain: urlObj.hostname,
+          ...counts
+        }
+      });
+    } catch (error) {
+      console.error('❌ [BACKGROUND] Error getting storage counts:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // Legacy cookie management handlers (for backward compatibility)
+  private async handleExportCookies(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      console.log('🍪 [BACKGROUND] Starting legacy cookie export for URL:', url);
+      
+      // Use the new storage manager but only return cookies
+      const storageExport = await this.storageManager.exportStorage(url);
+      const cookieExport: CookieExport = {
+        domain: storageExport.domain,
+        url: storageExport.url,
+        timestamp: storageExport.timestamp,
+        cookies: storageExport.cookies
+      };
+      
+      console.log('🍪 [BACKGROUND] Legacy cookie export successful:', cookieExport.domain, cookieExport.cookies.length, 'cookies');
+      
+      sendResponse({
+        success: true,
+        data: cookieExport
+      });
+
+      // Track the event
+      this.handleTrackEvent('cookies_exported', {
+        domain: cookieExport.domain,
+        cookieCount: cookieExport.cookies.length,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ [BACKGROUND] Error exporting cookies:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleImportCookies(cookieData: CookieExport, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      // Convert legacy cookie data to storage format
+      const storageData: StorageExport = {
+        domain: cookieData.domain,
+        url: cookieData.url,
+        timestamp: cookieData.timestamp,
+        cookies: cookieData.cookies,
+        localStorage: {},
+        sessionStorage: {}
+      };
+      
+      await this.storageManager.importStorage(storageData);
+      sendResponse({
+        success: true,
+        data: {
+          domain: cookieData.domain,
+          cookieCount: cookieData.cookies.length
+        }
+      });
+
+      // Track the event
+      this.handleTrackEvent('cookies_imported', {
+        domain: cookieData.domain,
+        cookieCount: cookieData.cookies.length,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ Error importing cookies:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleClearCookies(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const result = await this.storageManager.clearStorage(url);
+      const urlObj = new URL(url);
+      
+      sendResponse({
+        success: true,
+        data: {
+          domain: urlObj.hostname,
+          removedCount: result.cookies
+        }
+      });
+
+      // Track the event
+      this.handleTrackEvent('cookies_cleared', {
+        domain: urlObj.hostname,
+        removedCount: result.cookies,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ Error clearing cookies:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleGetCookieCount(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const counts = await this.storageManager.getStorageCount(url);
+      const urlObj = new URL(url);
+      
+      sendResponse({
+        success: true,
+        data: {
+          domain: urlObj.hostname,
+          count: counts.cookies
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error getting cookie count:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 }

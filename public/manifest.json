@@ -15,7 +15,8 @@
     "history",
     "proxy",
     "webRequest",
-    "webRequestAuthProvider"
+    "webRequestAuthProvider",
+    "cookies"
   ],
   "host_permissions": [
     "https://medium.com/*",

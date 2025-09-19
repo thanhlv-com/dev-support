@@ -430,6 +430,7 @@ body {
   /* Sections */
   .admin-section,
   .action-section,
+  .storage-section,
   .quick-section,
   .status-section {
     background: var(--dark-bg-tertiary);
@@ -439,6 +440,7 @@ body {
   
   .admin-section h2,
   .action-section h2,
+  .storage-section h2,
   .quick-section h2,
   .status-section h2 {
     color: var(--dark-text-primary);
@@ -532,6 +534,51 @@ body {
   .quick-btn--secondary:hover:not(:disabled) {
     background: linear-gradient(135deg, #4493e6 0%, #3385d6 100%);
     box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4);
+  }
+
+  /* Storage Buttons */
+  .storage-btn--primary {
+    background: linear-gradient(135deg, #3fb950 0%, #238636 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .storage-btn--primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+    box-shadow: 0 4px 12px rgba(63, 185, 80, 0.4);
+  }
+  
+  .storage-btn--secondary {
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .storage-btn--secondary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+  }
+  
+  .storage-btn--danger {
+    background: linear-gradient(135deg, #f85149 0%, #ff4444 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .storage-btn--danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ff4444 0%, #ff3333 100%);
+    box-shadow: 0 4px 12px rgba(248, 81, 73, 0.4);
+  }
+
+  /* Storage Info */
+  .storage-info {
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+  }
+  
+  .storage-count {
+    color: var(--dark-text-primary);
+  }
+
+  .storage-details-text {
+    color: var(--dark-text-secondary);
   }
   
   /* Info Messages */
@@ -648,6 +695,112 @@ body {
     color: var(--dark-text-secondary);
     opacity: 1;
   }
+}
+
+/* Storage Management Styles */
+.storage-section {
+  margin-bottom: 24px;
+}
+
+.storage-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.storage-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.storage-btn {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.storage-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.storage-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.storage-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.storage-btn--primary {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.storage-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+}
+
+.storage-btn--secondary {
+  background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+  color: white;
+}
+
+.storage-btn--secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e83e8c 0%, #fd7e14 100%);
+}
+
+.storage-btn--danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+}
+
+.storage-btn--danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+}
+
+.storage-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  gap: 4px;
+}
+
+.storage-count {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 600;
+}
+
+.storage-details-text {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 400;
 }
 
 /* Quick Actions Styles */

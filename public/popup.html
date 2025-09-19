@@ -31,6 +31,34 @@
           </div>
         </div>
         
+        <!-- Storage Management Section -->
+        <div class="storage-section">
+          <h2>💾 Storage Management</h2>
+          
+          <div class="storage-actions">
+            <button id="exportStorage" class="storage-btn storage-btn--primary">
+              📤 Export All Storage
+            </button>
+            <button id="importStorage" class="storage-btn storage-btn--secondary">
+              📥 Import Storage
+            </button>
+            <button id="clearStorage" class="storage-btn storage-btn--danger">
+              🧹 Clear All Storage
+            </button>
+          </div>
+          
+          <div class="storage-info">
+            <div class="storage-counts">
+              <span id="storageCount" class="storage-count">Loading storage info...</span>
+            </div>
+            <div class="storage-details">
+              <small id="storageDetails" class="storage-details-text">Cookies • localStorage • sessionStorage</small>
+            </div>
+          </div>
+
+          <input type="file" id="storageFileInput" accept=".json" style="display: none;">
+        </div>
+
         <!-- Quick History Actions -->
         <div class="quick-section">
           <h2>🗑️ Quick History Actions</h2>

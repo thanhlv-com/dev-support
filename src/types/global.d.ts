@@ -100,6 +100,53 @@ declare global {
     jsonViewer: boolean;
     [featureName: string]: boolean;
   }
+
+  // Storage management types (cookies + localStorage + sessionStorage)
+  interface CookieData {
+    name: string;
+    value: string;
+    domain?: string;
+    path?: string;
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: chrome.cookies.SameSiteStatus;
+    expirationDate?: number;
+  }
+
+  interface LocalStorageData {
+    [key: string]: string;
+  }
+
+  interface StorageExport {
+    domain: string;
+    url: string;
+    timestamp: number;
+    cookies: CookieData[];
+    localStorage: LocalStorageData;
+    sessionStorage: LocalStorageData;
+  }
+
+  // Legacy cookie export interface for backward compatibility
+  interface CookieExport {
+    domain: string;
+    url: string;
+    timestamp: number;
+    cookies: CookieData[];
+  }
+
+  interface StorageMessage extends ChromeMessage {
+    action: 'exportStorage' | 'importStorage' | 'clearStorage' | 'getStorageCount';
+    url?: string;  
+    tabId?: number;
+    storageData?: StorageExport;
+  }
+
+  // Legacy cookie message interface for backward compatibility
+  interface CookieMessage extends ChromeMessage {
+    action: 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount';
+    url?: string;
+    cookieData?: CookieExport;
+  }
 }
 
 export {};
