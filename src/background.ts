@@ -2,13 +2,18 @@
 
 /// <reference path="types/global.d.ts" />
 
+import ProxyManager from './features/proxy/ProxyManager';
+
 interface BackgroundMessage extends ChromeMessage {
-  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats';
+  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection';
   event?: string;
   data?: any;
   settings?: ExtensionSettings;
   options?: any;
   historyConfig?: HistoryDeletionConfig;
+  proxyConfig?: ProxyConfiguration;
+  proxyRule?: ProxyRule;
+  testUrl?: string;
 }
 
 interface BackgroundResponse {
@@ -21,11 +26,14 @@ interface BackgroundResponse {
 }
 
 class BackgroundController {
+  private proxyManager: ProxyManager;
+
   constructor() {
+    this.proxyManager = ProxyManager.getInstance();
     this.init();
   }
 
-  private init(): void {
+  private async init(): Promise<void> {
     console.log('🚀 Dev Support Extension background script loaded');
     
     // Setup event listeners
@@ -40,6 +48,9 @@ class BackgroundController {
     
     // Create history deletion alarms
     this.setupHistoryDeletionAlarms();
+    
+    // Initialize proxy configuration on startup
+    await this.initializeProxyConfiguration();
     
     console.log('✅ Dev Support Extension background script initialized');
   }
@@ -116,6 +127,24 @@ class BackgroundController {
         case 'getHistoryStats':
           this.handleGetHistoryStats(sendResponse);
           return true; // Keep message channel open for async response
+          
+        case 'getProxyConfig':
+          this.handleGetProxyConfig(sendResponse);
+          return true; // Keep message channel open for async response
+          
+        case 'saveProxyConfig':
+          if (message.proxyConfig) {
+            this.handleSaveProxyConfig(message.proxyConfig, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
+          
+        case 'testProxyConnection':
+          if (message.proxyRule) {
+            this.handleTestProxyConnection(message.proxyRule, message.testUrl, sendResponse);
+            return true; // Keep message channel open for async response
+          }
+          break;
       }
     });
   }
@@ -771,7 +800,7 @@ class BackgroundController {
         console.log('🧪 [TEST] Sample items:', testSearch.slice(0, 2).map(item => ({ url: item.url, visitCount: item.visitCount })));
       } catch (testError) {
         console.error('🧪 [TEST] Basic history access failed:', testError);
-        throw new Error(`History API test failed: ${testError.message}`);
+        throw new Error(`History API test failed: ${testError instanceof Error ? testError.message : 'Unknown error'}`);
       }
       
       // Get history items to analyze
@@ -925,7 +954,7 @@ class BackgroundController {
       
     } catch (error) {
       console.error('❌ [FATAL] Error performing immediate history deletion:', error);
-      console.error('❌ [FATAL] Error stack:', error.stack);
+      console.error('❌ [FATAL] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       sendResponse({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -1021,6 +1050,84 @@ class BackgroundController {
     }
     
     return true; // Delete by default
+  }
+
+  // Proxy-related handlers
+  private async handleGetProxyConfig(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const config = this.proxyManager.getConfiguration();
+      sendResponse({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error('❌ Error getting proxy configuration:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleSaveProxyConfig(config: ProxyConfiguration, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      await this.proxyManager.saveConfiguration(config);
+      console.log('💾 Proxy configuration saved:', config);
+      
+      sendResponse({
+        success: true
+      });
+      
+      // Track the event
+      this.handleTrackEvent('proxy_config_saved', {
+        enabled: config.enabled,
+        rulesCount: config.rules.length,
+        hasGlobalProxy: !!config.globalProxy,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ Error saving proxy configuration:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async handleTestProxyConnection(rule: ProxyRule, testUrl: string | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+    try {
+      const isValid = await this.proxyManager.testProxyConnection(rule, testUrl);
+      
+      sendResponse({
+        success: true,
+        data: { isValid }
+      });
+      
+      // Track the event
+      this.handleTrackEvent('proxy_connection_test', {
+        proxyType: rule.proxyType,
+        host: rule.host,
+        port: rule.port,
+        isValid,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('❌ Error testing proxy connection:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // Initialize proxy configuration on extension startup
+  private async initializeProxyConfiguration(): Promise<void> {
+    try {
+      console.log('🌐 Initializing proxy configuration...');
+      await this.proxyManager.initialize();
+    } catch (error) {
+      console.error('❌ Error initializing proxy configuration:', error);
+    }
   }
 }
 

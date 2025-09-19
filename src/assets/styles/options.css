@@ -499,3 +499,309 @@ input:checked + .slider:before {
     border-color: #555;
   }
 }
+
+/* Proxy Configuration Styles */
+.proxy-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.proxy-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.proxy-section h4 {
+  margin-bottom: 16px;
+  color: #495057;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.proxy-config-form {
+  margin-top: 16px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.proxy-rules-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.proxy-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.proxy-rule {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.proxy-rule:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.proxy-rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.proxy-rule-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.rule-name {
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  min-width: 200px;
+}
+
+.rule-name:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.proxy-rule-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.proxy-rule-config {
+  padding: 20px;
+}
+
+.config-btn--danger {
+  background: #dc3545;
+  color: white;
+  border: 2px solid #dc3545;
+}
+
+.config-btn--danger:hover {
+  background: #c82333;
+  border-color: #bd2130;
+}
+
+/* Proxy rule toggle styles */
+.proxy-rule .toggle-switch {
+  transform: scale(0.8);
+}
+
+/* Enhanced config grid for proxy rules */
+.proxy-rule .config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.proxy-rule .config-item.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Proxy connection status indicators */
+.proxy-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.proxy-status.connected {
+  background: #d4edda;
+  color: #155724;
+}
+
+.proxy-status.disconnected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.proxy-status.testing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+/* Proxy configuration import/export section */
+.proxy-actions-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e9ecef;
+}
+
+.proxy-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* Domain pattern examples */
+.pattern-examples {
+  margin-top: 8px;
+  padding: 12px;
+  background: #e7f3ff;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.pattern-examples h5 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.pattern-examples ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.pattern-examples li {
+  margin-bottom: 4px;
+}
+
+/* Proxy type badges */
+.proxy-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.proxy-type-badge.http {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.proxy-type-badge.https {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.proxy-type-badge.socks4 {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.proxy-type-badge.socks5 {
+  background: #fce4ec;
+  color: #c2185b;
+}
+
+/* Responsive adjustments for proxy configuration */
+@media (max-width: 768px) {
+  .proxy-rule .config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .proxy-rules-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .proxy-rule-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .proxy-rule-info {
+    width: 100%;
+  }
+  
+  .rule-name {
+    min-width: 100%;
+  }
+  
+  .proxy-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode proxy styles */
+@media (prefers-color-scheme: dark) {
+  .proxy-section {
+    border-color: #555;
+  }
+  
+  .proxy-config-form {
+    background: #3a3a3a;
+    border-color: #555;
+  }
+  
+  .proxy-rule {
+    background: #3a3a3a;
+    border-color: #555;
+  }
+  
+  .proxy-rule-header {
+    background: #2d2d2d;
+    border-color: #555;
+  }
+  
+  .rule-name {
+    color: #e0e0e0;
+  }
+  
+  .rule-name:focus {
+    background: #404040;
+  }
+  
+  .pattern-examples {
+    background: #2d4a5a;
+    border-left-color: #667eea;
+  }
+  
+  .proxy-type-badge.http {
+    background: #1a237e;
+    color: #bbdefb;
+  }
+  
+  .proxy-type-badge.https {
+    background: #1b5e20;
+    color: #c8e6c9;
+  }
+  
+  .proxy-type-badge.socks4 {
+    background: #e65100;
+    color: #ffcc02;
+  }
+  
+  .proxy-type-badge.socks5 {
+    background: #880e4f;
+    color: #f8bbd9;
+  }
+}

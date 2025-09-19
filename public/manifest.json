@@ -12,7 +12,8 @@
     "desktopCapture",
     "scripting",
     "downloads",
-    "history"
+    "history",
+    "proxy"
   ],
   "host_permissions": [
     "https://medium.com/*",

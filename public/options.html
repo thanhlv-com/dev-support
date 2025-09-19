@@ -117,6 +117,111 @@
         </div>
       </section>
 
+      <!-- Proxy Configuration Section -->
+      <section class="settings-section">
+        <h2>🌐 Proxy Configuration</h2>
+        
+        <div class="feature-toggle">
+          <div class="feature-info">
+            <h3>🔗 Proxy Management</h3>
+            <p class="feature-description">Configure HTTP, HTTPS, SOCKS4, and SOCKS5 proxies with domain-specific routing</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="proxyEnabled" class="feature-checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+        <div id="proxyConfig" class="config-panel" style="display: none;">
+          <!-- Global Proxy Settings -->
+          <div class="proxy-section">
+            <h4>🌍 Global Proxy (Default for all domains)</h4>
+            <div class="feature-toggle">
+              <div class="feature-info">
+                <span>Enable global proxy</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="globalProxyEnabled" class="feature-checkbox">
+                <span class="slider"></span>
+              </label>
+            </div>
+            
+            <div id="globalProxyConfig" class="proxy-config-form" style="display: none;">
+              <div class="config-grid">
+                <div class="config-item">
+                  <label for="globalProxyType">Type:</label>
+                  <select id="globalProxyType" class="config-select">
+                    <option value="http">HTTP</option>
+                    <option value="https">HTTPS</option>
+                    <option value="socks4">SOCKS4</option>
+                    <option value="socks5">SOCKS5</option>
+                  </select>
+                </div>
+                <div class="config-item">
+                  <label for="globalProxyHost">Host:</label>
+                  <input type="text" id="globalProxyHost" class="config-input" placeholder="127.0.0.1">
+                </div>
+                <div class="config-item">
+                  <label for="globalProxyPort">Port:</label>
+                  <input type="number" id="globalProxyPort" class="config-input" min="1" max="65535" placeholder="8080">
+                </div>
+                <div class="config-item">
+                  <label for="globalProxyUsername">Username (optional):</label>
+                  <input type="text" id="globalProxyUsername" class="config-input" placeholder="username">
+                </div>
+                <div class="config-item">
+                  <label for="globalProxyPassword">Password (optional):</label>
+                  <input type="password" id="globalProxyPassword" class="config-input" placeholder="password">
+                </div>
+                <div class="config-item full-width">
+                  <label for="globalProxyBypass">Bypass list (one per line):</label>
+                  <textarea id="globalProxyBypass" class="config-textarea" placeholder="localhost&#10;127.0.0.1&#10;*.local&#10;*.internal" rows="3"></textarea>
+                  <small class="config-help">Domains that should bypass the proxy. Use * as wildcard.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Domain-Specific Proxy Rules -->
+          <div class="proxy-section">
+            <h4>📋 Domain-Specific Proxy Rules</h4>
+            <div class="proxy-rules-header">
+              <button id="addProxyRule" class="config-btn config-btn--primary">+ Add Rule</button>
+              <button id="testAllProxies" class="config-btn config-btn--secondary">🧪 Test All</button>
+              <button id="showProxyDebug" class="config-btn config-btn--secondary">🔍 Debug Info</button>
+            </div>
+            
+            <div id="proxyRulesList" class="proxy-rules-list">
+              <!-- Proxy rules will be dynamically added here -->
+            </div>
+          </div>
+          
+          <div class="config-actions">
+            <button id="saveProxyConfig" class="config-btn config-btn--primary">Save Proxy Configuration</button>
+            <button id="resetProxyConfig" class="config-btn config-btn--secondary">Reset to Defaults</button>
+            <button id="exportProxyConfig" class="config-btn config-btn--secondary">Export Config</button>
+            <button id="importProxyConfig" class="config-btn config-btn--secondary">Import Config</button>
+          </div>
+          
+          <!-- Troubleshooting Guide -->
+          <div class="config-info">
+            <div class="info-icon">🔧</div>
+            <div class="info-text">
+              <strong>Troubleshooting Proxy Issues:</strong>
+              <ul style="margin-top: 8px; padding-left: 20px;">
+                <li><strong>Proxy not working:</strong> Check host format (no http://, just IP/domain), verify port number, ensure proxy server is running</li>
+                <li><strong>Authentication issues:</strong> Some proxies require both username AND password, check credentials with proxy provider</li>
+                <li><strong>SOCKS vs HTTP:</strong> Use SOCKS4/5 for general traffic, HTTP/HTTPS for web browsing only</li>
+                <li><strong>Domain patterns:</strong> Use *.domain.com for subdomains, domain.com for exact match</li>
+                <li><strong>Test fails but credentials correct:</strong> This is normal - extension testing is limited, try browsing to verify</li>
+                <li><strong>Check if working:</strong> Visit a matching domain, open F12 → Console, look for [PAC] debug messages</li>
+                <li><strong>Example test:</strong> Rule for *.httpbin.org → visit httpbin.org/ip to see if proxy IP shows</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Quick Actions Info -->
       <section class="settings-section">
         <h2>⚡ Quick Actions</h2>
@@ -146,6 +251,7 @@
   
   <!-- Hidden file input for import -->
   <input type="file" id="importFile" accept=".json" style="display: none;">
+  <input type="file" id="importProxyFile" accept=".json" style="display: none;">
   
   <!-- Status Messages -->
   <div id="statusMessage" class="status-message" style="display: none;"></div>

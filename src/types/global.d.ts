@@ -53,8 +53,29 @@ declare global {
     historyDeletion: HistoryDeletionConfig;
   }
 
+  // Proxy configuration types
+  interface ProxyRule {
+    id: string;
+    name: string;
+    enabled: boolean;
+    domainPatterns: string[];
+    proxyType: 'http' | 'https' | 'socks4' | 'socks5';
+    host: string;
+    port: number;
+    username?: string;
+    password?: string;
+    bypassList?: string[];
+  }
+
+  interface ProxyConfiguration {
+    enabled: boolean;
+    globalProxy?: ProxyRule;
+    rules: ProxyRule[];
+  }
+
   // Extension settings
   interface ExtensionSettings extends FeatureSettings {
+    proxyConfig?: ProxyConfiguration;
     [key: string]: any;
   }
 

@@ -121,7 +121,7 @@ export class ScreenCapture {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({
         action: 'captureScreen',
-        options: options
+        options
       }, (response: CaptureResponse) => {
         if (chrome.runtime.lastError) {
           resolve({

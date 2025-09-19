@@ -142,7 +142,7 @@ class PopupController {
       const response = await chrome.runtime.sendMessage({
         action: 'captureScreen',
         options: {
-          fullPage: fullPage,
+          fullPage,
           format: 'png',
           quality: 90, // Integer value (0-100)
           filename: this.generateFilename(fullPage)
@@ -285,7 +285,7 @@ class PopupController {
       
       const config: HistoryDeletionConfig = {
         enabled: true,
-        retentionDays: retentionDays,
+        retentionDays,
         interval: 'daily',
         deleteOnStartup: false,
         excludePatterns: []
