@@ -1103,11 +1103,12 @@ class BackgroundController {
         data: { isValid }
       });
       
-      // Track the event
+      // Track the event (using legacy format for compatibility)
       this.handleTrackEvent('proxy_connection_test', {
-        proxyType: rule.proxyType,
-        host: rule.host,
-        port: rule.port,
+        proxyType: (rule as any).proxyType || 'unknown',
+        host: (rule as any).host || 'unknown',
+        port: (rule as any).port || 0,
+        profileId: rule.profileId,
         isValid,
         timestamp: Date.now()
       });

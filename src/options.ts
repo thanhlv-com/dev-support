@@ -825,7 +825,7 @@ class OptionsController {
           return;
         }
 
-        this.showStatus(`Testing ${profile.proxyType.toUpperCase()} proxy ${profile.host}:${profile.port}...`, 'info');
+        this.showStatus(`Validating proxy settings ${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port}...`, 'info');
         
         // Create legacy rule format for testing compatibility
         const legacyRuleForTest = {
@@ -846,9 +846,9 @@ class OptionsController {
         if (response.success) {
           const isValid = response.data.isValid;
           if (isValid) {
-            this.showStatus(`✅ Proxy test passed for ${profile.name} (${profile.host}:${profile.port})`, 'success');
+            this.showStatus(`✅ Validation passed for ${profile.name} (${profile.host}:${profile.port}) - Settings appear valid`, 'success');
           } else {
-            this.showStatus(`❌ Proxy test failed for ${profile.name} (${profile.host}:${profile.port}). Check host, port, and credentials.`, 'error');
+            this.showStatus(`❌ Validation failed for ${profile.name} (${profile.host}:${profile.port}) - Check settings`, 'error');
           }
         } else {
           this.showStatus(`❌ Proxy test error: ${response.error}`, 'error');
@@ -1096,7 +1096,7 @@ class OptionsController {
           description: (profileElement.querySelector('.profile-description') as HTMLInputElement)?.value || profile.description
         };
 
-        this.showStatus(`Testing ${currentProfile.proxyType.toUpperCase()} proxy ${currentProfile.host}:${currentProfile.port}...`, 'info');
+        this.showStatus(`Validating proxy settings ${currentProfile.proxyType.toUpperCase()} ${currentProfile.host}:${currentProfile.port}...`, 'info');
         
         // Create a temporary rule for testing
         const testRule: ProxyRule = {
@@ -1128,9 +1128,9 @@ class OptionsController {
         if (response.success) {
           const isValid = response.data.isValid;
           if (isValid) {
-            this.showStatus(`✅ Profile test passed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port})`, 'success');
+            this.showStatus(`✅ Validation passed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port}) - Settings appear valid`, 'success');
           } else {
-            this.showStatus(`❌ Profile test failed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port}). Check host, port, and credentials.`, 'error');
+            this.showStatus(`❌ Validation failed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port}) - Check settings`, 'error');
           }
         } else {
           this.showStatus(`❌ Profile test error: ${response.error}`, 'error');

@@ -206,7 +206,7 @@
                 <li><strong>Authentication issues:</strong> Some proxies require both username AND password, check credentials with proxy provider</li>
                 <li><strong>SOCKS vs HTTP:</strong> Use SOCKS4/5 for general traffic, HTTP/HTTPS for web browsing only</li>
                 <li><strong>Domain patterns:</strong> Use *.domain.com for subdomains, domain.com for exact match</li>
-                <li><strong>Test fails but credentials correct:</strong> This is normal - extension testing is limited, try browsing to verify</li>
+                <li><strong>About proxy tests:</strong> The "Test" button validates proxy settings format (host, port, credentials) - it cannot test if credentials are correct or if the proxy server is reachable</li>
                 <li><strong>Check if working:</strong> Visit a matching domain, open F12 → Console, look for [PAC] debug messages</li>
                 <li><strong>Example test:</strong> Rule for *.httpbin.org → visit httpbin.org/ip to see if proxy IP shows</li>
               </ul>
