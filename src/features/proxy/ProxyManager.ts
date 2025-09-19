@@ -606,14 +606,10 @@ function FindProxyForURL(url, host) {
         return { success: false, error: 'Password provided but username is missing' };
       }
       
-      // For proxy credential validation, we need to be realistic about what we can test
-      // Chrome extensions cannot directly test proxy authentication without making actual network requests
-      // However, we can provide some basic validation
-      
+      // Basic credential validation
       if (profile.username && profile.password) {
         console.log(`🔍 Proxy has authentication credentials`);
         
-        // Basic credential validation
         if (profile.username.trim().length === 0) {
           return { success: false, error: 'Username cannot be empty' };
         }
@@ -622,18 +618,191 @@ function FindProxyForURL(url, host) {
           return { success: false, error: 'Password cannot be empty' };
         }
         
-        // For authenticated proxies, we can only validate that credentials are provided
-        // We cannot test if they are correct without actual network requests
-        console.log(`⚠️ Cannot validate proxy credentials without actual usage - assuming valid`);
-        return { success: true };
+        // Test actual proxy authentication by making a network request
+        console.log(`🧪 Testing proxy credentials with actual network request...`);
+        const authTestResult = await this.testProxyAuthenticationWithNetworkRequest(profile, testUrl);
+        return authTestResult;
       } else {
-        console.log(`🔍 Proxy has no authentication credentials - basic validation only`);
-        return { success: true };
+        console.log(`🔍 Proxy has no authentication credentials - testing basic connectivity`);
+        const basicTestResult = await this.testProxyAuthenticationWithNetworkRequest(profile, testUrl);
+        return basicTestResult;
       }
     } catch (error) {
       console.error(`❌ Proxy authentication test error:`, error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown authentication test error' };
     }
+  }
+
+  private async testProxyAuthenticationWithNetworkRequest(profile: ProxyProfile, testUrl: string): Promise<{ success: boolean; error?: string }> {
+    return new Promise((resolve) => {
+      console.log(`🌐 Making test request through proxy ${profile.host}:${profile.port} to ${testUrl}...`);
+      
+      // Set up authentication challenge listener to detect credential failures
+      let authChallengeDetected = false;
+      let authSuccess = false;
+      
+      const authHandler = (details: chrome.webRequest.WebAuthenticationChallengeDetails) => {
+        console.log(`🔐 Auth challenge detected:`, {
+          url: details.url,
+          challenger: details.challenger,
+          isProxy: details.challenger?.host === profile.host && details.challenger?.port === profile.port
+        });
+        
+        if (details.challenger?.host === profile.host && details.challenger?.port === profile.port) {
+          authChallengeDetected = true;
+          
+          if (profile.username && profile.password) {
+            console.log(`🔑 Providing credentials for proxy authentication`);
+            authSuccess = true;
+            return {
+              authCredentials: {
+                username: profile.username,
+                password: profile.password
+              }
+            };
+          } else {
+            console.log(`❌ Proxy requires authentication but no credentials provided`);
+            return { cancel: true };
+          }
+        }
+        return {};
+      };
+      
+      // Set up response listener to detect success/failure
+      const responseHandler = (details: chrome.webRequest.WebResponseHeadersDetails) => {
+        if (!details.url.includes(testUrl.replace('https://', '').replace('http://', ''))) {
+          return;
+        }
+        
+        console.log(`📡 Response received: ${details.statusCode} for ${details.url}`);
+        
+        // Check for proxy authentication errors
+        if (details.statusCode === 407) {
+          console.log(`❌ Proxy authentication failed (407 Proxy Authentication Required)`);
+          cleanup();
+          resolve({ success: false, error: 'Proxy authentication failed - incorrect username or password' });
+          return;
+        }
+        
+        if (details.statusCode >= 200 && details.statusCode < 300) {
+          console.log(`✅ Request successful through proxy`);
+          if (authChallengeDetected && profile.username && profile.password) {
+            console.log(`✅ Proxy authentication successful`);
+          }
+          cleanup();
+          resolve({ success: true });
+          return;
+        }
+        
+        // Other status codes might indicate network/proxy issues
+        if (details.statusCode >= 500) {
+          console.log(`⚠️ Server error (${details.statusCode}) - proxy may be working but target server has issues`);
+          cleanup();
+          resolve({ success: true }); // Proxy itself might be working
+          return;
+        }
+      };
+      
+      // Set up error handler for network failures
+      const errorHandler = (details: chrome.webRequest.WebRequestErrorDetails) => {
+        if (!details.url.includes(testUrl.replace('https://', '').replace('http://', ''))) {
+          return;
+        }
+        
+        console.log(`❌ Network error: ${details.error} for ${details.url}`);
+        cleanup();
+        
+        // Common proxy-related errors
+        if (details.error === 'net::ERR_PROXY_CONNECTION_FAILED') {
+          resolve({ success: false, error: 'Cannot connect to proxy server - check host and port' });
+        } else if (details.error === 'net::ERR_PROXY_AUTH_REQUESTED' || details.error === 'net::ERR_PROXY_AUTH_UNSUPPORTED') {
+          resolve({ success: false, error: 'Proxy authentication required but not supported or failed' });
+        } else if (details.error === 'net::ERR_TUNNEL_CONNECTION_FAILED') {
+          resolve({ success: false, error: 'Proxy tunnel connection failed - proxy may not support HTTPS' });
+        } else {
+          resolve({ success: false, error: `Network error: ${details.error}` });
+        }
+      };
+      
+      const cleanup = () => {
+        if (chrome.webRequest) {
+          try {
+            chrome.webRequest.onAuthRequired.removeListener(authHandler);
+            chrome.webRequest.onResponseStarted.removeListener(responseHandler);
+            chrome.webRequest.onErrorOccurred.removeListener(errorHandler);
+          } catch (e) {
+            console.warn('Error cleaning up request listeners:', e);
+          }
+        }
+      };
+      
+      // Set up listeners
+      if (chrome.webRequest) {
+        chrome.webRequest.onAuthRequired.addListener(
+          authHandler,
+          { urls: [testUrl] },
+          ['blocking']
+        );
+        
+        chrome.webRequest.onResponseStarted.addListener(
+          responseHandler,
+          { urls: [testUrl] }
+        );
+        
+        chrome.webRequest.onErrorOccurred.addListener(
+          errorHandler,
+          { urls: [testUrl] }
+        );
+      } else {
+        console.warn('⚠️ webRequest API not available - cannot test proxy authentication');
+        resolve({ success: false, error: 'webRequest API not available for testing' });
+        return;
+      }
+      
+      // Make the test request using fetch with timeout
+      const testTimeout = setTimeout(() => {
+        console.log(`⏰ Proxy test timeout after 10 seconds`);
+        cleanup();
+        resolve({ success: false, error: 'Proxy test timeout - connection may be slow or blocked' });
+      }, 10000);
+      
+      // Use fetch to make the actual test request
+      fetch(testUrl, {
+        method: 'HEAD', // Use HEAD to minimize data transfer
+        cache: 'no-cache',
+        mode: 'cors'
+      }).then(response => {
+        clearTimeout(testTimeout);
+        console.log(`📡 Fetch response: ${response.status} ${response.statusText}`);
+        
+        if (response.status === 407) {
+          cleanup();
+          resolve({ success: false, error: 'Proxy authentication failed - incorrect username or password' });
+        } else if (response.ok) {
+          cleanup();
+          resolve({ success: true });
+        } else {
+          cleanup();
+          resolve({ success: true }); // Proxy worked even if target server had issues
+        }
+      }).catch(error => {
+        clearTimeout(testTimeout);
+        console.log(`❌ Fetch error:`, error);
+        
+        // Don't cleanup here as error handler will handle it
+        // The webRequest error handler will provide more specific error details
+        
+        // If webRequest didn't catch it, provide fallback
+        setTimeout(() => {
+          cleanup();
+          if (error.message.includes('Failed to fetch')) {
+            resolve({ success: false, error: 'Connection failed - check proxy settings' });
+          } else {
+            resolve({ success: false, error: error.message });
+          }
+        }, 100);
+      });
+    });
   }
   
   private isValidHostname(hostname: string): boolean {
