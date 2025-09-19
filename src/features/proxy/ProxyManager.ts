@@ -183,7 +183,7 @@ class ProxyManager {
       console.log('📊 Current proxy config:', {
         enabled: this.proxyConfig.enabled,
         rulesCount: this.proxyConfig.rules.length,
-        hasGlobalProxy: !!this.proxyConfig.globalProxy,
+        hasGlobalProxy: !!this.proxyConfig.globalProxyProfileId,
         enabledRules: this.proxyConfig.rules.filter(r => r.enabled).length
       });
       
@@ -468,7 +468,7 @@ function FindProxyForURL(url, host) {
       const testPacScript = this.generateTestPacScript(rule);
       
       // Store current proxy configuration
-      let originalConfig: chrome.proxy.ProxyConfig | null = null;
+      let originalConfig: chrome.proxy.ProxyConfig | undefined = undefined;
       
       if (chrome.proxy?.settings) {
         try {
@@ -516,25 +516,33 @@ function FindProxyForURL(url, host) {
           
           // Restore original configuration
           if (originalConfig) {
-            await chrome.proxy.settings.set({
-              value: originalConfig,
-              scope: 'regular'
-            });
+            if (originalConfig!.mode !== 'direct') {
+              await chrome.proxy.settings.set({
+                value: originalConfig!,
+                scope: 'regular'
+              });
+            } else {
+              await chrome.proxy.settings.clear({ scope: 'regular' });
+            }
           } else {
             await chrome.proxy.settings.clear({ scope: 'regular' });
           }
           
-          return testSuccess;
+          return true;
         } catch (proxyError) {
           console.error('Proxy API error:', proxyError);
           
           // Try to restore original config on error
           try {
             if (originalConfig) {
-              await chrome.proxy.settings.set({
-                value: originalConfig,
-                scope: 'regular'
-              });
+              if (originalConfig!.mode !== 'direct') {
+                await chrome.proxy.settings.set({
+                  value: originalConfig!,
+                  scope: 'regular'
+                });
+              } else {
+                await chrome.proxy.settings.clear({ scope: 'regular' });
+              }
             } else {
               await chrome.proxy.settings.clear({ scope: 'regular' });
             }
@@ -641,7 +649,7 @@ function FindProxyForURL(url, host) {
       let authChallengeDetected = false;
       let authSuccess = false;
       
-      const authHandler = (details: chrome.webRequest.WebAuthenticationChallengeDetails) => {
+      const authHandler = (details: chrome.webRequest.OnAuthRequiredDetails) => {
         console.log(`🔐 Auth challenge detected:`, {
           url: details.url,
           challenger: details.challenger,
@@ -669,7 +677,7 @@ function FindProxyForURL(url, host) {
       };
       
       // Set up response listener to detect success/failure
-      const responseHandler = (details: chrome.webRequest.WebResponseHeadersDetails) => {
+      const responseHandler = (details: chrome.webRequest.OnResponseStartedDetails) => {
         if (!details.url.includes(testUrl.replace('https://', '').replace('http://', ''))) {
           return;
         }
@@ -704,7 +712,7 @@ function FindProxyForURL(url, host) {
       };
       
       // Set up error handler for network failures
-      const errorHandler = (details: chrome.webRequest.WebRequestErrorDetails) => {
+      const errorHandler = (details: chrome.webRequest.OnErrorOccurredDetails) => {
         if (!details.url.includes(testUrl.replace('https://', '').replace('http://', ''))) {
           return;
         }
@@ -1033,7 +1041,7 @@ function FindProxyForURL(url, host) {
 
     // Handle authentication challenges
     chrome.webRequest.onAuthRequired.addListener(
-      this.handleAuthRequired.bind(this),
+      this.handleProxyAuthRequired.bind(this),
       { urls: ['<all_urls>'] },
       ['blocking']
     );
@@ -1041,8 +1049,8 @@ function FindProxyForURL(url, host) {
     console.log('✅ Proxy authentication handlers configured');
   }
 
-  private handleAuthRequired(
-    details: chrome.webRequest.WebAuthenticationChallengeDetails
+  private handleProxyAuthRequired(
+    details: chrome.webRequest.OnAuthRequiredDetails
   ): chrome.webRequest.BlockingResponse | undefined {
     console.log('🔐 Authentication challenge received:', {
       url: details.url,
@@ -1104,8 +1112,8 @@ function FindProxyForURL(url, host) {
   }
 
   public clearAuthenticationHandlers(): void {
-    if (chrome.webRequest && chrome.webRequest.onAuthRequired.hasListener(this.handleAuthRequired)) {
-      chrome.webRequest.onAuthRequired.removeListener(this.handleAuthRequired);
+    if (chrome.webRequest && chrome.webRequest.onAuthRequired.hasListener(this.handleProxyAuthRequired)) {
+      chrome.webRequest.onAuthRequired.removeListener(this.handleProxyAuthRequired);
       console.log('🧹 Proxy authentication handlers cleared');
     }
   }

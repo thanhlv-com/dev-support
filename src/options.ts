@@ -4,7 +4,7 @@
 
 interface OptionsElements {
   // Feature toggles
-  mediumFreedium: HTMLInputElement | null;
+  freediumFeature: HTMLInputElement | null;
   jsonViewer: HTMLInputElement | null;
   historyDeletion: HTMLInputElement | null;
   proxyEnabled: HTMLInputElement | null;
@@ -59,7 +59,7 @@ class OptionsController {
 
   constructor() {
     this.elements = {
-      mediumFreedium: null,
+      freediumFeature: null,
       jsonViewer: null,
       historyDeletion: null,
       proxyEnabled: null,
@@ -109,7 +109,7 @@ class OptionsController {
 
   private async initializeElements(): Promise<void> {
     // Feature toggles
-    this.elements.mediumFreedium = document.getElementById('mediumFreedium') as HTMLInputElement;
+    this.elements.freediumFeature = document.getElementById('freediumFeature') as HTMLInputElement;
     this.elements.jsonViewer = document.getElementById('jsonViewer') as HTMLInputElement;
     this.elements.historyDeletion = document.getElementById('historyDeletion') as HTMLInputElement;
     this.elements.proxyEnabled = document.getElementById('proxyEnabled') as HTMLInputElement;
@@ -166,8 +166,8 @@ class OptionsController {
         const settings = response.settings;
         
         // Set feature toggles
-        if (this.elements.mediumFreedium) {
-          this.elements.mediumFreedium.checked = settings.mediumFreedium !== false;
+        if (this.elements.freediumFeature) {
+          this.elements.freediumFeature.checked = settings.freediumFeature !== false;
         }
         if (this.elements.jsonViewer) {
           this.elements.jsonViewer.checked = settings.jsonViewer !== false;
@@ -205,9 +205,9 @@ class OptionsController {
 
   private setupEventListeners(): void {
     // Feature toggles
-    if (this.elements.mediumFreedium) {
-      this.elements.mediumFreedium.addEventListener('change', (e) => {
-        this.handleFeatureToggle('mediumFreedium', e);
+    if (this.elements.freediumFeature) {
+      this.elements.freediumFeature.addEventListener('change', (e) => {
+        this.handleFeatureToggle('freediumFeature', e);
       });
     }
     
@@ -331,7 +331,7 @@ class OptionsController {
     }
   }
 
-  private async handleFeatureToggle(feature: 'mediumFreedium' | 'jsonViewer', event: Event): Promise<void> {
+  private async handleFeatureToggle(feature: 'freediumFeature' | 'jsonViewer', event: Event): Promise<void> {
     const target = event.target as HTMLInputElement;
     const enabled = target.checked;
     
@@ -348,7 +348,7 @@ class OptionsController {
 
   private getFeatureName(feature: string): string {
     switch (feature) {
-      case 'mediumFreedium': return 'Medium Freedium Redirect';
+      case 'freediumFeature': return 'Medium Freedium Redirect';
       case 'jsonViewer': return 'JSON Viewer';
       default: return feature;
     }
@@ -1069,10 +1069,6 @@ class OptionsController {
       profileId: '', // Will need to be set to an existing profile ID
       bypassList: ['localhost', '127.0.0.1', '*.local']
     };
-  }
-
-  private generateRuleId(): string {
-    return 'proxy-rule-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   }
 
   private async handleTestProxyProfile(profileId: string): Promise<void> {

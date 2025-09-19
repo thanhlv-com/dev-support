@@ -3,9 +3,9 @@
 /// <reference path="types/global.d.ts" />
 
 import ProxyManager from './features/proxy/ProxyManager';
-import { StorageManager } from './features/cookie-manager/CookieManager';
+import { StorageManager } from './features/storage-manager/StorageManager';
 
-interface BackgroundMessage extends ChromeMessage {
+interface ExtensionMessage extends ChromeMessage {
   action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection' | 'exportStorage' | 'importStorage' | 'clearStorage' | 'getStorageCount' | 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount';
   event?: string;
   data?: any;
@@ -21,7 +21,7 @@ interface BackgroundMessage extends ChromeMessage {
   cookieData?: CookieExport;
 }
 
-interface BackgroundResponse {
+interface ExtensionResponse {
   success: boolean;
   settings?: ExtensionSettings;
   dataUrl?: string;
@@ -30,7 +30,7 @@ interface BackgroundResponse {
   error?: string;
 }
 
-class BackgroundController {
+class ExtensionBackgroundController {
   private proxyManager: ProxyManager;
   private storageManager: StorageManager;
 
@@ -77,8 +77,8 @@ class BackgroundController {
         };
         
         chrome.storage.sync.set({
-          mediumFreedium: true, // Enable Medium Freedium by default
-          jsonViewer: true,     // Enable JSON Viewer by default
+          freediumFeature: true, // Enable Medium Freedium by default
+          jsonViewer: true,      // Enable JSON Viewer by default
           historyDeletion: defaultHistoryConfig
         });
         console.log('✅ Default settings initialized');
@@ -88,9 +88,9 @@ class BackgroundController {
 
   private setupMessageListener(): void {
     chrome.runtime.onMessage.addListener((
-      message: BackgroundMessage,
+      message: ExtensionMessage,
       sender: chrome.runtime.MessageSender,
-      sendResponse: (response: BackgroundResponse) => void
+      sendResponse: (response: ExtensionResponse) => void
     ) => {
       console.log('📨 Background received message:', message);
       
@@ -217,7 +217,7 @@ class BackgroundController {
     chrome.tabs.onUpdated.addListener((tabId: number, changeInfo: any, tab: chrome.tabs.Tab) => {
       if (changeInfo.status === 'complete' && tab.url) {
         // Check if this is a Medium page
-        const isMediumPage = this.isMediumUrl(tab.url);
+        const isMediumPage = this.isMediumDomain(tab.url);
         
         if (isMediumPage) {
           console.log('📄 Medium page detected:', tab.url);
@@ -315,9 +315,9 @@ class BackgroundController {
     }
   }
 
-  private async handleGetSettings(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleGetSettings(sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
-      const settings = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer', 'historyDeletion']) as ChromeStorageResult;
+      const settings = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'historyDeletion']) as ChromeStorageResult;
       
       const defaultHistoryConfig: HistoryDeletionConfig = {
         enabled: false,
@@ -330,8 +330,8 @@ class BackgroundController {
       sendResponse({
         success: true,
         settings: {
-          mediumFreedium: settings.mediumFreedium !== false, // Default to true
-          jsonViewer: settings.jsonViewer !== false,          // Default to true
+          freediumFeature: settings.freediumFeature !== false, // Default to true
+          jsonViewer: settings.jsonViewer !== false,           // Default to true
           historyDeletion: settings.historyDeletion || defaultHistoryConfig
         }
       });
@@ -344,7 +344,7 @@ class BackgroundController {
     }
   }
 
-  private async handleSaveSettings(settings: ExtensionSettings, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleSaveSettings(settings: ExtensionSettings, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       await chrome.storage.sync.set(settings);
       console.log('💾 Settings saved:', settings);
@@ -380,7 +380,7 @@ class BackgroundController {
 
   private async handleScreenCapture(
     options: any, 
-    sendResponse: (response: BackgroundResponse) => void,
+    sendResponse: (response: ExtensionResponse) => void,
     sender: chrome.runtime.MessageSender
   ): Promise<void> {
     try {
@@ -612,7 +612,7 @@ class BackgroundController {
     });
   }
 
-  private isMediumUrl(url: string): boolean {
+  private isMediumDomain(url: string): boolean {
     return url.includes('medium.com') || url.includes('towardsdatascience.com');
   }
 
@@ -796,7 +796,7 @@ class BackgroundController {
     }
   }
 
-  private async handleHistoryDeletion(config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleHistoryDeletion(config: HistoryDeletionConfig, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       // Save the new configuration
       await chrome.storage.sync.set({ historyDeletion: config });
@@ -818,7 +818,7 @@ class BackgroundController {
     }
   }
 
-  private async handleDeleteHistoryNow(config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleDeleteHistoryNow(config: HistoryDeletionConfig, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       console.log('🗑️ [START] Performing immediate history deletion with config:', JSON.stringify(config, null, 2));
       
@@ -1026,7 +1026,7 @@ class BackgroundController {
     }
   }
 
-  private async deleteHistoryIndividually(historyItems: chrome.history.HistoryItem[], config: HistoryDeletionConfig, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async deleteHistoryIndividually(historyItems: chrome.history.HistoryItem[], config: HistoryDeletionConfig, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     let deletedCount = 0;
     let skippedCount = 0;
     
@@ -1060,7 +1060,7 @@ class BackgroundController {
     });
   }
 
-  private async handleGetHistoryStats(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleGetHistoryStats(sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       // Get total history count (approximate)
       const recentHistory = await chrome.history.search({
@@ -1117,7 +1117,7 @@ class BackgroundController {
   }
 
   // Proxy-related handlers
-  private async handleGetProxyConfig(sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleGetProxyConfig(sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const config = this.proxyManager.getConfiguration();
       sendResponse({
@@ -1133,7 +1133,7 @@ class BackgroundController {
     }
   }
 
-  private async handleSaveProxyConfig(config: ProxyConfiguration, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleSaveProxyConfig(config: ProxyConfiguration, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       await this.proxyManager.saveConfiguration(config);
       console.log('💾 Proxy configuration saved:', config);
@@ -1158,7 +1158,7 @@ class BackgroundController {
     }
   }
 
-  private async handleTestProxyConnection(rule: ProxyRule, testUrl: string | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleTestProxyConnection(rule: ProxyRule, testUrl: string | undefined, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const isValid = await this.proxyManager.testProxyConnection(rule, testUrl);
       
@@ -1196,7 +1196,7 @@ class BackgroundController {
   }
 
   // Storage management handlers (new)
-  private async handleExportStorage(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleExportStorage(url: string, tabId: number | undefined, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       console.log('💾 [BACKGROUND] Starting storage export for URL:', url, 'tabId:', tabId);
       
@@ -1239,7 +1239,7 @@ class BackgroundController {
     }
   }
 
-  private async handleImportStorage(storageData: StorageExport, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleImportStorage(storageData: StorageExport, tabId: number | undefined, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       await this.storageManager.importStorage(storageData, tabId);
       sendResponse({
@@ -1269,7 +1269,7 @@ class BackgroundController {
     }
   }
 
-  private async handleClearStorage(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleClearStorage(url: string, tabId: number | undefined, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const result = await this.storageManager.clearStorage(url, tabId);
       const urlObj = new URL(url);
@@ -1297,7 +1297,7 @@ class BackgroundController {
     }
   }
 
-  private async handleGetStorageCount(url: string, tabId: number | undefined, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleGetStorageCount(url: string, tabId: number | undefined, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const counts = await this.storageManager.getStorageCount(url, tabId);
       const urlObj = new URL(url);
@@ -1319,7 +1319,7 @@ class BackgroundController {
   }
 
   // Legacy cookie management handlers (for backward compatibility)
-  private async handleExportCookies(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleExportCookies(url: string, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       console.log('🍪 [BACKGROUND] Starting legacy cookie export for URL:', url);
       
@@ -1354,7 +1354,7 @@ class BackgroundController {
     }
   }
 
-  private async handleImportCookies(cookieData: CookieExport, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleImportCookies(cookieData: CookieExport, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       // Convert legacy cookie data to storage format
       const storageData: StorageExport = {
@@ -1391,7 +1391,7 @@ class BackgroundController {
     }
   }
 
-  private async handleClearCookies(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleClearCookies(url: string, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const result = await this.storageManager.clearStorage(url);
       const urlObj = new URL(url);
@@ -1419,7 +1419,7 @@ class BackgroundController {
     }
   }
 
-  private async handleGetCookieCount(url: string, sendResponse: (response: BackgroundResponse) => void): Promise<void> {
+  private async handleGetCookieCount(url: string, sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
       const counts = await this.storageManager.getStorageCount(url);
       const urlObj = new URL(url);
@@ -1442,4 +1442,4 @@ class BackgroundController {
 }
 
 // Initialize background controller
-new BackgroundController();
+new ExtensionBackgroundController();

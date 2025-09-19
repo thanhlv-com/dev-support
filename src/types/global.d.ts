@@ -48,7 +48,7 @@ declare global {
 
   // Feature settings interface
   interface FeatureSettings {
-    mediumFreedium: boolean;
+    freediumFeature: boolean;
     jsonViewer: boolean;
     historyDeletion: HistoryDeletionConfig;
   }
@@ -96,7 +96,7 @@ declare global {
 
   // Feature toggle component state
   interface FeatureState {
-    mediumFreedium: boolean;
+    freediumFeature: boolean;
     jsonViewer: boolean;
     [featureName: string]: boolean;
   }
