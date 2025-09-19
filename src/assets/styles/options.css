@@ -1087,3 +1087,177 @@ input:checked + .slider:before {
     backdrop-filter: blur(10px);
   }
 }
+
+/* Proxy Profiles Styles */
+.proxy-profiles-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.proxy-profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.proxy-profile {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.proxy-profile:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.proxy-profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.proxy-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.profile-name {
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  min-width: 200px;
+}
+
+.profile-name:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.profile-details {
+  font-size: 14px;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.proxy-profile-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.proxy-profile-config {
+  padding: 20px;
+}
+
+.section-description {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Enhanced config grid for proxy profiles */
+.proxy-profile .config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.proxy-profile .config-item.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Dark mode proxy profile styles */
+@media (prefers-color-scheme: dark) {
+  .proxy-profile {
+    background: var(--dark-bg-tertiary);
+    border: 1px solid var(--dark-border-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+  }
+  
+  .proxy-profile:hover {
+    border-color: var(--dark-border-muted);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  .proxy-profile-header {
+    background: var(--dark-bg-secondary);
+    border-bottom: 1px solid var(--dark-border-secondary);
+  }
+  
+  .profile-name {
+    color: var(--dark-text-primary);
+    background: transparent;
+    font-weight: 600;
+  }
+  
+  .profile-name:focus {
+    background: var(--dark-bg-hover);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+    border-radius: 4px;
+  }
+  
+  .profile-details {
+    background: var(--dark-bg-hover);
+    color: var(--dark-text-muted);
+    border: 1px solid var(--dark-border-secondary);
+  }
+  
+  .proxy-profile-config {
+    background: var(--dark-bg-tertiary);
+  }
+  
+  .section-description {
+    color: var(--dark-text-muted);
+  }
+}
+
+/* Responsive adjustments for proxy profiles */
+@media (max-width: 768px) {
+  .proxy-profile .config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .proxy-profiles-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .proxy-profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .proxy-profile-info {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .profile-name {
+    min-width: 100%;
+  }
+}

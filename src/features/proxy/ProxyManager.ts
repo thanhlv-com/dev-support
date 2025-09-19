@@ -54,6 +54,7 @@ class ProxyManager {
   private getDefaultConfiguration(): ProxyConfiguration {
     return {
       enabled: false,
+      profiles: [],
       rules: []
     };
   }
@@ -122,7 +123,7 @@ class ProxyManager {
     return regex.test(domain);
   }
 
-  public findMatchingProxyRule(url: string): ProxyRule | null {
+  public findMatchingProxyRule(url: string): { rule: ProxyRule; profile: ProxyProfile } | null {
     if (!this.proxyConfig || !this.proxyConfig.enabled) {
       return null;
     }
@@ -130,16 +131,38 @@ class ProxyManager {
     // Check specific rules first
     for (const rule of this.proxyConfig.rules) {
       if (rule.enabled && this.matchDomainPattern(url, rule.domainPatterns)) {
-        return rule;
+        const profile = this.findProfileById(rule.profileId);
+        if (profile) {
+          return { rule, profile };
+        }
       }
     }
 
     // Check global proxy if no specific rule matches
-    if (this.proxyConfig.globalProxy && this.proxyConfig.globalProxy.enabled) {
-      return this.proxyConfig.globalProxy;
+    if (this.proxyConfig.globalProxyProfileId) {
+      const globalProfile = this.findProfileById(this.proxyConfig.globalProxyProfileId);
+      if (globalProfile) {
+        // Create a virtual rule for global proxy
+        const globalRule: ProxyRule = {
+          id: 'global-proxy',
+          name: 'Global Proxy',
+          enabled: true,
+          domainPatterns: ['*'],
+          profileId: this.proxyConfig.globalProxyProfileId,
+          bypassList: []
+        };
+        return { rule: globalRule, profile: globalProfile };
+      }
     }
 
     return null;
+  }
+
+  private findProfileById(profileId: string): ProxyProfile | null {
+    if (!this.proxyConfig) {
+      return null;
+    }
+    return this.proxyConfig.profiles.find(profile => profile.id === profileId) || null;
   }
 
   private async applyProxyConfiguration(): Promise<void> {
@@ -232,32 +255,59 @@ class ProxyManager {
       return 'function FindProxyForURL(url, host) { return "DIRECT"; }';
     }
 
-    // Create sanitized versions without passwords for the PAC script
-    const sanitizedRules = this.proxyConfig.rules.filter(rule => rule.enabled).map(rule => ({
-      ...rule,
+    // Create sanitized versions of profiles and rules for the PAC script
+    const sanitizedProfiles = this.proxyConfig.profiles.map(profile => ({
+      ...profile,
       password: undefined // Remove password from PAC script
     }));
     
-    const sanitizedGlobalProxy = this.proxyConfig.globalProxy ? {
-      ...this.proxyConfig.globalProxy,
-      password: undefined // Remove password from PAC script
-    } : null;
+    const sanitizedRules = this.proxyConfig.rules.filter(rule => rule.enabled);
+    
+    const sanitizedGlobalProxyProfileId = this.proxyConfig.globalProxyProfileId;
 
     // Validate that we have rules or global proxy
-    if (sanitizedRules.length === 0 && !sanitizedGlobalProxy) {
+    if (sanitizedRules.length === 0 && !sanitizedGlobalProxyProfileId) {
       console.warn('⚠️ No proxy rules configured, PAC script will return DIRECT for all requests');
     }
 
     const pacScript = `
 function FindProxyForURL(url, host) {
   // Embedded proxy configuration
+  var profiles = ${JSON.stringify(sanitizedProfiles)};
   var rules = ${JSON.stringify(sanitizedRules)};
-  var globalProxy = ${JSON.stringify(sanitizedGlobalProxy)};
+  var globalProxyProfileId = ${JSON.stringify(sanitizedGlobalProxyProfileId)};
   
   // Debug logging
   console.log("[PAC] Processing: " + url + " (host: " + host + ")");
+  console.log("[PAC] Available profiles: " + profiles.length);
   console.log("[PAC] Available rules: " + rules.length);
-  console.log("[PAC] Global proxy: " + (globalProxy ? "Yes" : "No"));
+  console.log("[PAC] Global proxy profile: " + (globalProxyProfileId ? globalProxyProfileId : "None"));
+  
+  // Helper function to find profile by ID
+  function findProfile(profileId) {
+    for (var i = 0; i < profiles.length; i++) {
+      if (profiles[i].id === profileId) {
+        return profiles[i];
+      }
+    }
+    return null;
+  }
+  
+  // Helper function to build proxy string from profile
+  function buildProxyString(profile) {
+    var proxyType = profile.proxyType.toUpperCase();
+    // Chrome expects specific proxy type names in PAC scripts
+    if (proxyType === "SOCKS4") {
+      proxyType = "SOCKS";
+    } else if (proxyType === "SOCKS5") {
+      proxyType = "SOCKS5";
+    } else if (proxyType === "HTTPS") {
+      proxyType = "HTTPS";
+    } else {
+      proxyType = "PROXY"; // HTTP becomes PROXY in PAC scripts
+    }
+    return proxyType + " " + profile.host + ":" + profile.port;
+  }
   
   // Helper function to match domain patterns
   function matchPattern(domain, pattern) {
@@ -304,7 +354,16 @@ function FindProxyForURL(url, host) {
       for (var j = 0; j < rule.domainPatterns.length; j++) {
         var pattern = rule.domainPatterns[j];
         if (matchPattern(host, pattern)) {
-          console.log("[PAC] Rule matched! Checking bypass list...");
+          console.log("[PAC] Rule matched! Looking for profile: " + rule.profileId);
+          
+          // Find the profile for this rule
+          var profile = findProfile(rule.profileId);
+          if (!profile) {
+            console.log("[PAC] Profile not found: " + rule.profileId);
+            continue;
+          }
+          
+          console.log("[PAC] Found profile: " + profile.name + " (" + profile.proxyType + " " + profile.host + ":" + profile.port + ")");
           
           // Check bypass list
           if (rule.bypassList && rule.bypassList.length > 0) {
@@ -316,19 +375,8 @@ function FindProxyForURL(url, host) {
             }
           }
           
-          var proxyType = rule.proxyType.toUpperCase();
-          // Chrome expects specific proxy type names in PAC scripts
-          if (proxyType === "SOCKS4") {
-            proxyType = "SOCKS";
-          } else if (proxyType === "SOCKS5") {
-            proxyType = "SOCKS5";
-          } else if (proxyType === "HTTPS") {
-            proxyType = "HTTPS";
-          } else {
-            proxyType = "PROXY"; // HTTP becomes PROXY in PAC scripts
-          }
-          var proxyStr = proxyType + " " + rule.host + ":" + rule.port;
-          console.log("[PAC] Using proxy: " + proxyStr + " for rule: " + rule.name);
+          var proxyStr = buildProxyString(profile);
+          console.log("[PAC] Using proxy: " + proxyStr + " for rule: " + rule.name + " (profile: " + profile.name + ")");
           return proxyStr;
         }
       }
@@ -336,33 +384,19 @@ function FindProxyForURL(url, host) {
   }
   
   // Check global proxy
-  if (globalProxy && globalProxy.enabled) {
-    console.log("[PAC] Checking global proxy...");
+  if (globalProxyProfileId) {
+    console.log("[PAC] Checking global proxy profile: " + globalProxyProfileId);
     
-    // Check bypass list for global proxy
-    if (globalProxy.bypassList && globalProxy.bypassList.length > 0) {
-      for (var i = 0; i < globalProxy.bypassList.length; i++) {
-        if (matchPattern(host, globalProxy.bypassList[i])) {
-          console.log("[PAC] Bypassed by global proxy rule: " + globalProxy.bypassList[i]);
-          return "DIRECT";
-        }
-      }
-    }
-    
-    var globalProxyType = globalProxy.proxyType.toUpperCase();
-    // Chrome expects specific proxy type names in PAC scripts
-    if (globalProxyType === "SOCKS4") {
-      globalProxyType = "SOCKS";
-    } else if (globalProxyType === "SOCKS5") {
-      globalProxyType = "SOCKS5";
-    } else if (globalProxyType === "HTTPS") {
-      globalProxyType = "HTTPS";
+    var globalProfile = findProfile(globalProxyProfileId);
+    if (globalProfile) {
+      console.log("[PAC] Found global profile: " + globalProfile.name + " (" + globalProfile.proxyType + " " + globalProfile.host + ":" + globalProfile.port + ")");
+      
+      var globalProxyStr = buildProxyString(globalProfile);
+      console.log("[PAC] Using global proxy: " + globalProxyStr + " (profile: " + globalProfile.name + ")");
+      return globalProxyStr;
     } else {
-      globalProxyType = "PROXY"; // HTTP becomes PROXY in PAC scripts
+      console.log("[PAC] Global proxy profile not found: " + globalProxyProfileId);
     }
-    var globalProxyStr = globalProxyType + " " + globalProxy.host + ":" + globalProxy.port;
-    console.log("[PAC] Using global proxy: " + globalProxyStr);
-    return globalProxyStr;
   }
   
   console.log("[PAC] No proxy rules matched, using DIRECT");
@@ -510,34 +544,22 @@ function FindProxyForURL(url, host) {
   }
 
   public validateProxyRule(rule: ProxyRule): boolean {
-    // Validate host
-    if (!rule.host || rule.host.trim() === '') {
-      console.error('❌ Proxy validation: Host is required');
+    // Validate profile ID
+    if (!rule.profileId || rule.profileId.trim() === '') {
+      console.error('❌ Proxy rule validation: Profile ID is required');
       return false;
     }
 
-    // Validate host format (basic check)
-    const hostPattern = /^[a-zA-Z0-9.-]+$/;
-    if (!hostPattern.test(rule.host.trim())) {
-      console.error('❌ Proxy validation: Invalid host format');
-      return false;
-    }
-
-    // Validate port
-    if (!rule.port || rule.port < 1 || rule.port > 65535) {
-      console.error('❌ Proxy validation: Port must be between 1 and 65535');
-      return false;
-    }
-
-    // Validate proxy type
-    if (!['http', 'https', 'socks4', 'socks5'].includes(rule.proxyType)) {
-      console.error('❌ Proxy validation: Invalid proxy type');
+    // Check if profile exists
+    const profile = this.findProfileById(rule.profileId);
+    if (!profile) {
+      console.error('❌ Proxy rule validation: Referenced profile not found:', rule.profileId);
       return false;
     }
 
     // Validate domain patterns (only for non-global proxy)
     if (rule.id !== 'global-proxy' && (!rule.domainPatterns || rule.domainPatterns.length === 0)) {
-      console.error('❌ Proxy validation: At least one domain pattern is required');
+      console.error('❌ Proxy rule validation: At least one domain pattern is required');
       return false;
     }
 
@@ -548,15 +570,44 @@ function FindProxyForURL(url, host) {
         
         // Basic pattern validation - check for obviously invalid patterns
         if (pattern.includes('..') || pattern.startsWith('.') && pattern.length === 1) {
-          console.error('❌ Proxy validation: Invalid domain pattern:', pattern);
+          console.error('❌ Proxy rule validation: Invalid domain pattern:', pattern);
           return false;
         }
       }
     }
 
+    return true;
+  }
+
+  public validateProxyProfile(profile: ProxyProfile): boolean {
+    // Validate host
+    if (!profile.host || profile.host.trim() === '') {
+      console.error('❌ Proxy profile validation: Host is required');
+      return false;
+    }
+
+    // Validate host format (basic check)
+    const hostPattern = /^[a-zA-Z0-9.-]+$/;
+    if (!hostPattern.test(profile.host.trim())) {
+      console.error('❌ Proxy profile validation: Invalid host format');
+      return false;
+    }
+
+    // Validate port
+    if (!profile.port || profile.port < 1 || profile.port > 65535) {
+      console.error('❌ Proxy profile validation: Port must be between 1 and 65535');
+      return false;
+    }
+
+    // Validate proxy type
+    if (!['http', 'https', 'socks4', 'socks5'].includes(profile.proxyType)) {
+      console.error('❌ Proxy profile validation: Invalid proxy type');
+      return false;
+    }
+
     // Validate authentication if provided
-    if (rule.username && rule.username.trim() !== '' && (!rule.password || rule.password.trim() === '')) {
-      console.warn('⚠️ Proxy validation: Username provided but password is empty');
+    if (profile.username && profile.username.trim() !== '' && (!profile.password || profile.password.trim() === '')) {
+      console.warn('⚠️ Proxy profile validation: Username provided but password is empty');
     }
 
     return true;
@@ -572,11 +623,62 @@ function FindProxyForURL(url, host) {
       name: 'New Proxy Rule',
       enabled: true,
       domainPatterns: ['*.example.com'],
+      profileId: '', // Will need to be set to an existing profile ID
+      bypassList: ['localhost', '127.0.0.1', '*.local']
+    };
+  }
+
+  public generateProfileId(): string {
+    return 'proxy-profile-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  }
+
+  public createDefaultProfile(): ProxyProfile {
+    return {
+      id: this.generateProfileId(),
+      name: 'New Proxy Profile',
       proxyType: 'http',
       host: '127.0.0.1',
       port: 8080,
-      bypassList: ['localhost', '127.0.0.1', '*.local']
+      description: 'Default proxy profile'
     };
+  }
+
+  public getProfiles(): ProxyProfile[] {
+    return this.proxyConfig?.profiles || [];
+  }
+
+  public addProfile(profile: ProxyProfile): void {
+    if (!this.proxyConfig) {
+      this.proxyConfig = this.getDefaultConfiguration();
+    }
+    this.proxyConfig.profiles.push(profile);
+  }
+
+  public updateProfile(profileId: string, updatedProfile: Partial<ProxyProfile>): boolean {
+    if (!this.proxyConfig) return false;
+    
+    const profileIndex = this.proxyConfig.profiles.findIndex(p => p.id === profileId);
+    if (profileIndex === -1) return false;
+    
+    this.proxyConfig.profiles[profileIndex] = { ...this.proxyConfig.profiles[profileIndex], ...updatedProfile };
+    return true;
+  }
+
+  public removeProfile(profileId: string): boolean {
+    if (!this.proxyConfig) return false;
+    
+    // Check if profile is being used by any rules or global proxy
+    const isUsedByRules = this.proxyConfig.rules.some(rule => rule.profileId === profileId);
+    const isUsedByGlobal = this.proxyConfig.globalProxyProfileId === profileId;
+    
+    if (isUsedByRules || isUsedByGlobal) {
+      console.warn(`Cannot remove profile ${profileId} - it is being used by rules or global proxy`);
+      return false;
+    }
+    
+    const originalLength = this.proxyConfig.profiles.length;
+    this.proxyConfig.profiles = this.proxyConfig.profiles.filter(p => p.id !== profileId);
+    return this.proxyConfig.profiles.length < originalLength;
   }
 
   // Export/Import functionality
@@ -606,18 +708,35 @@ function FindProxyForURL(url, host) {
       return false;
     }
 
+    if (!Array.isArray(config.profiles)) {
+      return false;
+    }
+
     if (!Array.isArray(config.rules)) {
       return false;
     }
 
+    // Validate all profiles
+    for (const profile of config.profiles) {
+      if (!this.validateProxyProfile(profile)) {
+        return false;
+      }
+    }
+
+    // Validate all rules
     for (const rule of config.rules) {
       if (!this.validateProxyRule(rule)) {
         return false;
       }
     }
 
-    if (config.globalProxy && !this.validateProxyRule(config.globalProxy)) {
-      return false;
+    // Validate global proxy profile reference if set
+    if (config.globalProxyProfileId) {
+      const globalProfile = config.profiles.find(p => p.id === config.globalProxyProfileId);
+      if (!globalProfile) {
+        console.error('❌ Configuration validation: Global proxy profile not found:', config.globalProxyProfileId);
+        return false;
+      }
     }
 
     return true;
@@ -685,37 +804,22 @@ function FindProxyForURL(url, host) {
       return null;
     }
 
-    // Check global proxy first
-    if (this.proxyConfig.globalProxy && 
-        this.proxyConfig.globalProxy.enabled &&
-        this.proxyConfig.globalProxy.host === host &&
-        this.proxyConfig.globalProxy.port === port &&
-        this.proxyConfig.globalProxy.username &&
-        this.proxyConfig.globalProxy.password) {
-      
-      console.log('🌐 Using global proxy credentials');
-      return {
-        username: this.proxyConfig.globalProxy.username,
-        password: this.proxyConfig.globalProxy.password
-      };
-    }
-
-    // Check specific rules
-    for (const rule of this.proxyConfig.rules) {
-      if (rule.enabled &&
-          rule.host === host &&
-          rule.port === port &&
-          rule.username &&
-          rule.password) {
+    // Check all profiles for matching host/port with credentials
+    for (const profile of this.proxyConfig.profiles) {
+      if (profile.host === host &&
+          profile.port === port &&
+          profile.username &&
+          profile.password) {
         
-        console.log(`📋 Using rule credentials: ${rule.name}`);
+        console.log(`🔐 Using profile credentials: ${profile.name} (${profile.proxyType} ${profile.host}:${profile.port})`);
         return {
-          username: rule.username,
-          password: rule.password
+          username: profile.username,
+          password: profile.password
         };
       }
     }
 
+    console.log(`❌ No credentials found for proxy ${host}:${port} in any profile`);
     return null;
   }
 

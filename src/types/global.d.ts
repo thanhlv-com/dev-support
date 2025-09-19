@@ -54,22 +54,30 @@ declare global {
   }
 
   // Proxy configuration types
-  interface ProxyRule {
+  interface ProxyProfile {
     id: string;
     name: string;
-    enabled: boolean;
-    domainPatterns: string[];
     proxyType: 'http' | 'https' | 'socks4' | 'socks5';
     host: string;
     port: number;
     username?: string;
     password?: string;
+    description?: string;
+  }
+
+  interface ProxyRule {
+    id: string;
+    name: string;
+    enabled: boolean;
+    domainPatterns: string[];
+    profileId: string; // References a ProxyProfile
     bypassList?: string[];
   }
 
   interface ProxyConfiguration {
     enabled: boolean;
-    globalProxy?: ProxyRule;
+    profiles: ProxyProfile[];
+    globalProxyProfileId?: string; // References a ProxyProfile for global proxy
     rules: ProxyRule[];
   }
 

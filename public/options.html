@@ -133,6 +133,20 @@
         </div>
         
         <div id="proxyConfig" class="config-panel" style="display: none;">
+          <!-- Proxy Profiles Management -->
+          <div class="proxy-section">
+            <h4>⚙️ Proxy Profiles</h4>
+            <p class="section-description">Create reusable proxy configurations. Profiles can be used by multiple rules and global proxy.</p>
+            
+            <div class="proxy-profiles-header">
+              <button id="addProxyProfile" class="config-btn config-btn--primary">+ Add Profile</button>
+            </div>
+            
+            <div id="proxyProfilesList" class="proxy-profiles-list">
+              <!-- Proxy profiles will be dynamically added here -->
+            </div>
+          </div>
+          
           <!-- Global Proxy Settings -->
           <div class="proxy-section">
             <h4>🌍 Global Proxy (Default for all domains)</h4>
@@ -148,35 +162,12 @@
             
             <div id="globalProxyConfig" class="proxy-config-form" style="display: none;">
               <div class="config-grid">
-                <div class="config-item">
-                  <label for="globalProxyType">Type:</label>
-                  <select id="globalProxyType" class="config-select">
-                    <option value="http">HTTP</option>
-                    <option value="https">HTTPS</option>
-                    <option value="socks4">SOCKS4</option>
-                    <option value="socks5">SOCKS5</option>
-                  </select>
-                </div>
-                <div class="config-item">
-                  <label for="globalProxyHost">Host:</label>
-                  <input type="text" id="globalProxyHost" class="config-input" placeholder="127.0.0.1">
-                </div>
-                <div class="config-item">
-                  <label for="globalProxyPort">Port:</label>
-                  <input type="number" id="globalProxyPort" class="config-input" min="1" max="65535" placeholder="8080">
-                </div>
-                <div class="config-item">
-                  <label for="globalProxyUsername">Username (optional):</label>
-                  <input type="text" id="globalProxyUsername" class="config-input" placeholder="username">
-                </div>
-                <div class="config-item">
-                  <label for="globalProxyPassword">Password (optional):</label>
-                  <input type="password" id="globalProxyPassword" class="config-input" placeholder="password">
-                </div>
                 <div class="config-item full-width">
-                  <label for="globalProxyBypass">Bypass list (one per line):</label>
-                  <textarea id="globalProxyBypass" class="config-textarea" placeholder="localhost&#10;127.0.0.1&#10;*.local&#10;*.internal" rows="3"></textarea>
-                  <small class="config-help">Domains that should bypass the proxy. Use * as wildcard.</small>
+                  <label for="globalProxyProfileSelect">Select Profile:</label>
+                  <select id="globalProxyProfileSelect" class="config-select">
+                    <option value="">Select a profile...</option>
+                  </select>
+                  <small class="config-help">Choose a proxy profile to use as the global proxy for all domains not matched by specific rules.</small>
                 </div>
               </div>
             </div>
@@ -185,6 +176,8 @@
           <!-- Domain-Specific Proxy Rules -->
           <div class="proxy-section">
             <h4>📋 Domain-Specific Proxy Rules</h4>
+            <p class="section-description">Create rules that route specific domains through selected proxy profiles.</p>
+            
             <div class="proxy-rules-header">
               <button id="addProxyRule" class="config-btn config-btn--primary">+ Add Rule</button>
               <button id="testAllProxies" class="config-btn config-btn--secondary">🧪 Test All</button>

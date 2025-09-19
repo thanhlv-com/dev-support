@@ -20,12 +20,13 @@ interface OptionsElements {
   proxyConfig: HTMLElement | null;
   globalProxyEnabled: HTMLInputElement | null;
   globalProxyConfig: HTMLElement | null;
-  globalProxyType: HTMLSelectElement | null;
-  globalProxyHost: HTMLInputElement | null;
-  globalProxyPort: HTMLInputElement | null;
-  globalProxyUsername: HTMLInputElement | null;
-  globalProxyPassword: HTMLInputElement | null;
-  globalProxyBypass: HTMLTextAreaElement | null;
+  globalProxyProfileSelect: HTMLSelectElement | null;
+  
+  // Proxy profiles
+  proxyProfilesList: HTMLElement | null;
+  addProxyProfile: HTMLButtonElement | null;
+  
+  // Proxy rules
   proxyRulesList: HTMLElement | null;
   
   // Buttons
@@ -70,12 +71,9 @@ class OptionsController {
       proxyConfig: null,
       globalProxyEnabled: null,
       globalProxyConfig: null,
-      globalProxyType: null,
-      globalProxyHost: null,
-      globalProxyPort: null,
-      globalProxyUsername: null,
-      globalProxyPassword: null,
-      globalProxyBypass: null,
+      globalProxyProfileSelect: null,
+      proxyProfilesList: null,
+      addProxyProfile: null,
       proxyRulesList: null,
       saveHistoryConfig: null,
       resetHistoryConfig: null,
@@ -127,12 +125,13 @@ class OptionsController {
     this.elements.proxyConfig = document.getElementById('proxyConfig');
     this.elements.globalProxyEnabled = document.getElementById('globalProxyEnabled') as HTMLInputElement;
     this.elements.globalProxyConfig = document.getElementById('globalProxyConfig');
-    this.elements.globalProxyType = document.getElementById('globalProxyType') as HTMLSelectElement;
-    this.elements.globalProxyHost = document.getElementById('globalProxyHost') as HTMLInputElement;
-    this.elements.globalProxyPort = document.getElementById('globalProxyPort') as HTMLInputElement;
-    this.elements.globalProxyUsername = document.getElementById('globalProxyUsername') as HTMLInputElement;
-    this.elements.globalProxyPassword = document.getElementById('globalProxyPassword') as HTMLInputElement;
-    this.elements.globalProxyBypass = document.getElementById('globalProxyBypass') as HTMLTextAreaElement;
+    this.elements.globalProxyProfileSelect = document.getElementById('globalProxyProfileSelect') as HTMLSelectElement;
+    
+    // Proxy profiles
+    this.elements.proxyProfilesList = document.getElementById('proxyProfilesList');
+    this.elements.addProxyProfile = document.getElementById('addProxyProfile') as HTMLButtonElement;
+    
+    // Proxy rules
     this.elements.proxyRulesList = document.getElementById('proxyRulesList');
     
     // Buttons
@@ -304,6 +303,12 @@ class OptionsController {
     if (this.elements.importProxyFile) {
       this.elements.importProxyFile.addEventListener('change', (e) => {
         this.handleImportProxyConfig(e);
+      });
+    }
+
+    if (this.elements.addProxyProfile) {
+      this.elements.addProxyProfile.addEventListener('click', () => {
+        this.handleAddProxyProfile();
       });
     }
 
@@ -543,6 +548,7 @@ class OptionsController {
         // Initialize with default configuration
         this.currentProxyConfig = {
           enabled: false,
+          profiles: [],
           rules: []
         };
         this.loadProxyConfigUI(this.currentProxyConfig);
@@ -560,39 +566,53 @@ class OptionsController {
       this.toggleProxyConfig(config.enabled);
     }
 
+    // Load proxy profiles
+    this.renderProxyProfiles(config.profiles || []);
+
     // Load global proxy settings
-    if (config.globalProxy) {
-      this.loadGlobalProxyConfig(config.globalProxy);
-    }
+    this.loadGlobalProxyConfig(config);
 
     // Load proxy rules
-    this.renderProxyRules(config.rules);
+    this.renderProxyRules(config.rules || []);
   }
 
-  private loadGlobalProxyConfig(globalProxy: ProxyRule): void {
+  private loadGlobalProxyConfig(config: ProxyConfiguration): void {
     if (this.elements.globalProxyEnabled) {
-      this.elements.globalProxyEnabled.checked = globalProxy.enabled;
-      this.toggleGlobalProxyConfig(globalProxy.enabled);
+      this.elements.globalProxyEnabled.checked = !!config.globalProxyProfileId;
+      this.toggleGlobalProxyConfig(!!config.globalProxyProfileId);
     }
 
-    if (this.elements.globalProxyType) {
-      this.elements.globalProxyType.value = globalProxy.proxyType;
-    }
-    if (this.elements.globalProxyHost) {
-      this.elements.globalProxyHost.value = globalProxy.host;
-    }
-    if (this.elements.globalProxyPort) {
-      this.elements.globalProxyPort.value = globalProxy.port.toString();
-    }
-    if (this.elements.globalProxyUsername) {
-      this.elements.globalProxyUsername.value = globalProxy.username || '';
-    }
-    if (this.elements.globalProxyPassword) {
-      this.elements.globalProxyPassword.value = globalProxy.password || '';
-    }
-    if (this.elements.globalProxyBypass) {
-      this.elements.globalProxyBypass.value = (globalProxy.bypassList || []).join('\n');
-    }
+    // Update global proxy profile select options
+    this.updateGlobalProxyProfileSelect(config.profiles || [], config.globalProxyProfileId);
+  }
+
+  private updateGlobalProxyProfileSelect(profiles: ProxyProfile[], selectedProfileId?: string): void {
+    if (!this.elements.globalProxyProfileSelect) return;
+
+    // Clear existing options
+    this.elements.globalProxyProfileSelect.innerHTML = '<option value="">Select a profile...</option>';
+
+    // Add profile options
+    profiles.forEach(profile => {
+      const option = document.createElement('option');
+      option.value = profile.id;
+      option.textContent = `${profile.name} (${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port})`;
+      if (profile.id === selectedProfileId) {
+        option.selected = true;
+      }
+      this.elements.globalProxyProfileSelect!.appendChild(option);
+    });
+  }
+
+  private renderProxyProfiles(profiles: ProxyProfile[]): void {
+    if (!this.elements.proxyProfilesList) return;
+
+    this.elements.proxyProfilesList.innerHTML = '';
+
+    profiles.forEach((profile, index) => {
+      const profileElement = this.createProxyProfileElement(profile, index);
+      this.elements.proxyProfilesList!.appendChild(profileElement);
+    });
   }
 
   private renderProxyRules(rules: ProxyRule[]): void {
@@ -606,10 +626,71 @@ class OptionsController {
     });
   }
 
+  private createProxyProfileElement(profile: ProxyProfile, _index: number): HTMLElement {
+    const profileDiv = document.createElement('div');
+    profileDiv.className = 'proxy-profile';
+    profileDiv.setAttribute('data-profile-id', profile.id);
+
+    profileDiv.innerHTML = `
+      <div class="proxy-profile-header">
+        <div class="proxy-profile-info">
+          <input type="text" class="profile-name" value="${profile.name}" placeholder="Profile name">
+          <span class="profile-details">${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port}</span>
+        </div>
+        <div class="proxy-profile-actions">
+          <button class="config-btn config-btn--secondary test-profile">🧪 Test</button>
+          <button class="config-btn config-btn--danger remove-profile">🗑️ Remove</button>
+        </div>
+      </div>
+      <div class="proxy-profile-config">
+        <div class="config-grid">
+          <div class="config-item">
+            <label>Type:</label>
+            <select class="config-select profile-type">
+              <option value="http" ${profile.proxyType === 'http' ? 'selected' : ''}>HTTP</option>
+              <option value="https" ${profile.proxyType === 'https' ? 'selected' : ''}>HTTPS</option>
+              <option value="socks4" ${profile.proxyType === 'socks4' ? 'selected' : ''}>SOCKS4</option>
+              <option value="socks5" ${profile.proxyType === 'socks5' ? 'selected' : ''}>SOCKS5</option>
+            </select>
+          </div>
+          <div class="config-item">
+            <label>Host:</label>
+            <input type="text" class="config-input profile-host" value="${profile.host}" placeholder="127.0.0.1">
+          </div>
+          <div class="config-item">
+            <label>Port:</label>
+            <input type="number" class="config-input profile-port" min="1" max="65535" value="${profile.port}">
+          </div>
+          <div class="config-item">
+            <label>Username:</label>
+            <input type="text" class="config-input profile-username" value="${profile.username || ''}" placeholder="optional">
+          </div>
+          <div class="config-item">
+            <label>Password:</label>
+            <input type="password" class="config-input profile-password" value="${profile.password || ''}" placeholder="optional">
+          </div>
+          <div class="config-item full-width">
+            <label>Description:</label>
+            <input type="text" class="config-input profile-description" value="${profile.description || ''}" placeholder="Optional description">
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add event listeners for this profile
+    this.setupProxyProfileEventListeners(profileDiv, profile.id);
+
+    return profileDiv;
+  }
+
   private createProxyRuleElement(rule: ProxyRule, _index: number): HTMLElement {
     const ruleDiv = document.createElement('div');
     ruleDiv.className = 'proxy-rule';
     ruleDiv.setAttribute('data-rule-id', rule.id);
+
+    // Get profile info for display
+    const profile = this.findProfileById(rule.profileId);
+    const profileDisplay = profile ? `${profile.name} (${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port})` : 'Profile not found';
 
     ruleDiv.innerHTML = `
       <div class="proxy-rule-header">
@@ -627,30 +708,12 @@ class OptionsController {
       </div>
       <div class="proxy-rule-config">
         <div class="config-grid">
-          <div class="config-item">
-            <label>Type:</label>
-            <select class="config-select rule-type">
-              <option value="http" ${rule.proxyType === 'http' ? 'selected' : ''}>HTTP</option>
-              <option value="https" ${rule.proxyType === 'https' ? 'selected' : ''}>HTTPS</option>
-              <option value="socks4" ${rule.proxyType === 'socks4' ? 'selected' : ''}>SOCKS4</option>
-              <option value="socks5" ${rule.proxyType === 'socks5' ? 'selected' : ''}>SOCKS5</option>
+          <div class="config-item full-width">
+            <label>Proxy Profile:</label>
+            <select class="config-select rule-profile-select">
+              <option value="">Select a profile...</option>
             </select>
-          </div>
-          <div class="config-item">
-            <label>Host:</label>
-            <input type="text" class="config-input rule-host" value="${rule.host}" placeholder="127.0.0.1">
-          </div>
-          <div class="config-item">
-            <label>Port:</label>
-            <input type="number" class="config-input rule-port" min="1" max="65535" value="${rule.port}">
-          </div>
-          <div class="config-item">
-            <label>Username:</label>
-            <input type="text" class="config-input rule-username" value="${rule.username || ''}" placeholder="optional">
-          </div>
-          <div class="config-item">
-            <label>Password:</label>
-            <input type="password" class="config-input rule-password" value="${rule.password || ''}" placeholder="optional">
+            <small class="config-help">Current: ${profileDisplay}</small>
           </div>
           <div class="config-item full-width">
             <label>Domain patterns (one per line):</label>
@@ -666,10 +729,49 @@ class OptionsController {
       </div>
     `;
 
+    // Update the profile select options
+    this.updateRuleProfileSelect(ruleDiv, rule.profileId);
+
     // Add event listeners for this rule
     this.setupProxyRuleEventListeners(ruleDiv, rule.id);
 
     return ruleDiv;
+  }
+
+  private findProfileById(profileId: string): ProxyProfile | null {
+    return this.currentProxyConfig?.profiles.find(profile => profile.id === profileId) || null;
+  }
+
+  private updateRuleProfileSelect(ruleElement: HTMLElement, selectedProfileId: string): void {
+    const profileSelect = ruleElement.querySelector('.rule-profile-select') as HTMLSelectElement;
+    if (!profileSelect || !this.currentProxyConfig) return;
+
+    // Clear existing options except the first one
+    profileSelect.innerHTML = '<option value="">Select a profile...</option>';
+
+    // Add profile options
+    this.currentProxyConfig.profiles.forEach(profile => {
+      const option = document.createElement('option');
+      option.value = profile.id;
+      option.textContent = `${profile.name} (${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port})`;
+      if (profile.id === selectedProfileId) {
+        option.selected = true;
+      }
+      profileSelect.appendChild(option);
+    });
+  }
+
+  private setupProxyProfileEventListeners(profileElement: HTMLElement, profileId: string): void {
+    const testButton = profileElement.querySelector('.test-profile') as HTMLButtonElement;
+    const removeButton = profileElement.querySelector('.remove-profile') as HTMLButtonElement;
+
+    if (testButton) {
+      testButton.addEventListener('click', () => this.handleTestProxyProfile(profileId));
+    }
+
+    if (removeButton) {
+      removeButton.addEventListener('click', () => this.handleRemoveProxyProfile(profileId));
+    }
   }
 
   private setupProxyRuleEventListeners(ruleElement: HTMLElement, ruleId: string): void {
@@ -711,29 +813,42 @@ class OptionsController {
           id: rule.id,
           name: (ruleElement.querySelector('.rule-name') as HTMLInputElement)?.value || rule.name,
           enabled: (ruleElement.querySelector('.rule-enabled') as HTMLInputElement)?.checked || false,
-          proxyType: (ruleElement.querySelector('.rule-type') as HTMLSelectElement)?.value as any || rule.proxyType,
-          host: (ruleElement.querySelector('.rule-host') as HTMLInputElement)?.value || rule.host,
-          port: parseInt((ruleElement.querySelector('.rule-port') as HTMLInputElement)?.value || '0') || rule.port,
-          username: (ruleElement.querySelector('.rule-username') as HTMLInputElement)?.value || rule.username,
-          password: (ruleElement.querySelector('.rule-password') as HTMLInputElement)?.value || rule.password,
+          profileId: (ruleElement.querySelector('.rule-profile-select') as HTMLSelectElement)?.value || rule.profileId,
           domainPatterns: ((ruleElement.querySelector('.rule-patterns') as HTMLTextAreaElement)?.value || '').split('\n').filter(p => p.trim()) || rule.domainPatterns,
           bypassList: ((ruleElement.querySelector('.rule-bypass') as HTMLTextAreaElement)?.value || '').split('\n').filter(p => p.trim()) || rule.bypassList
         };
 
-        this.showStatus(`Testing ${currentRule.proxyType.toUpperCase()} proxy ${currentRule.host}:${currentRule.port}...`, 'info');
+        // Get the profile for testing
+        const profile = this.findProfileById(currentRule.profileId);
+        if (!profile) {
+          this.showStatus(`❌ Profile not found for rule: ${currentRule.name}`, 'error');
+          return;
+        }
+
+        this.showStatus(`Testing ${profile.proxyType.toUpperCase()} proxy ${profile.host}:${profile.port}...`, 'info');
         
+        // Create legacy rule format for testing compatibility
+        const legacyRuleForTest = {
+          ...currentRule,
+          proxyType: profile.proxyType,
+          host: profile.host,
+          port: profile.port,
+          username: profile.username,
+          password: profile.password
+        };
+
         const response = await chrome.runtime.sendMessage({
           action: 'testProxyConnection',
-          proxyRule: currentRule,
+          proxyRule: legacyRuleForTest,
           testUrl: 'https://www.google.com'
         });
 
         if (response.success) {
           const isValid = response.data.isValid;
           if (isValid) {
-            this.showStatus(`✅ Proxy test passed for ${currentRule.host}:${currentRule.port}`, 'success');
+            this.showStatus(`✅ Proxy test passed for ${profile.name} (${profile.host}:${profile.port})`, 'success');
           } else {
-            this.showStatus(`❌ Proxy test failed for ${currentRule.host}:${currentRule.port}. Check host, port, and credentials.`, 'error');
+            this.showStatus(`❌ Proxy test failed for ${profile.name} (${profile.host}:${profile.port}). Check host, port, and credentials.`, 'error');
           }
         } else {
           this.showStatus(`❌ Proxy test error: ${response.error}`, 'error');
@@ -757,18 +872,6 @@ class OptionsController {
     return 'proxy-rule-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   }
 
-  private createDefaultRule(): ProxyRule {
-    return {
-      id: this.generateRuleId(),
-      name: `Proxy Rule ${(this.currentProxyConfig?.rules.length || 0) + 1}`,
-      enabled: true,
-      domainPatterns: ['*.example.com'],
-      proxyType: 'http',
-      host: '127.0.0.1',
-      port: 8080,
-      bypassList: ['localhost', '127.0.0.1', '*.local']
-    };
-  }
 
   // Proxy event handlers
   private handleProxyToggle(event: Event): void {
@@ -793,6 +896,7 @@ class OptionsController {
     if (!this.currentProxyConfig) {
       this.currentProxyConfig = {
         enabled: false,
+        profiles: [],
         rules: []
       };
     }
@@ -800,28 +904,47 @@ class OptionsController {
     // Update from UI
     this.currentProxyConfig.enabled = this.elements.proxyEnabled?.checked || false;
 
-    // Update global proxy
-    if (this.elements.globalProxyEnabled?.checked) {
-      this.currentProxyConfig.globalProxy = {
-        id: 'global-proxy',
-        name: 'Global Proxy',
-        enabled: true,
-        domainPatterns: ['*'],
-        proxyType: (this.elements.globalProxyType?.value as any) || 'http',
-        host: this.elements.globalProxyHost?.value || '127.0.0.1',
-        port: parseInt(this.elements.globalProxyPort?.value || '8080'),
-        username: this.elements.globalProxyUsername?.value || undefined,
-        password: this.elements.globalProxyPassword?.value || undefined,
-        bypassList: this.elements.globalProxyBypass?.value.split('\n').filter(p => p.trim()) || []
-      };
+    // Update global proxy profile ID
+    if (this.elements.globalProxyEnabled?.checked && this.elements.globalProxyProfileSelect?.value) {
+      this.currentProxyConfig.globalProxyProfileId = this.elements.globalProxyProfileSelect.value;
     } else {
-      this.currentProxyConfig.globalProxy = undefined;
+      this.currentProxyConfig.globalProxyProfileId = undefined;
     }
+
+    // Update profiles from DOM
+    this.updateProfilesFromDOM();
 
     // Update rules from DOM
     this.updateRulesFromDOM();
 
     return this.currentProxyConfig;
+  }
+
+  private updateProfilesFromDOM(): void {
+    if (!this.elements.proxyProfilesList || !this.currentProxyConfig) return;
+
+    const profileElements = this.elements.proxyProfilesList.querySelectorAll('.proxy-profile');
+    const updatedProfiles: ProxyProfile[] = [];
+
+    profileElements.forEach(profileElement => {
+      const profileId = profileElement.getAttribute('data-profile-id');
+      if (!profileId) return;
+
+      const profile: ProxyProfile = {
+        id: profileId,
+        name: (profileElement.querySelector('.profile-name') as HTMLInputElement)?.value || 'Unnamed Profile',
+        proxyType: (profileElement.querySelector('.profile-type') as HTMLSelectElement)?.value as any || 'http',
+        host: (profileElement.querySelector('.profile-host') as HTMLInputElement)?.value || '127.0.0.1',
+        port: parseInt((profileElement.querySelector('.profile-port') as HTMLInputElement)?.value || '8080'),
+        username: (profileElement.querySelector('.profile-username') as HTMLInputElement)?.value || undefined,
+        password: (profileElement.querySelector('.profile-password') as HTMLInputElement)?.value || undefined,
+        description: (profileElement.querySelector('.profile-description') as HTMLInputElement)?.value || undefined
+      };
+
+      updatedProfiles.push(profile);
+    });
+
+    this.currentProxyConfig.profiles = updatedProfiles;
   }
 
   private updateRulesFromDOM(): void {
@@ -838,11 +961,7 @@ class OptionsController {
         id: ruleId,
         name: (ruleElement.querySelector('.rule-name') as HTMLInputElement)?.value || 'Unnamed Rule',
         enabled: (ruleElement.querySelector('.rule-enabled') as HTMLInputElement)?.checked || false,
-        proxyType: (ruleElement.querySelector('.rule-type') as HTMLSelectElement)?.value as any || 'http',
-        host: (ruleElement.querySelector('.rule-host') as HTMLInputElement)?.value || '127.0.0.1',
-        port: parseInt((ruleElement.querySelector('.rule-port') as HTMLInputElement)?.value || '8080'),
-        username: (ruleElement.querySelector('.rule-username') as HTMLInputElement)?.value || undefined,
-        password: (ruleElement.querySelector('.rule-password') as HTMLInputElement)?.value || undefined,
+        profileId: (ruleElement.querySelector('.rule-profile-select') as HTMLSelectElement)?.value || '',
         domainPatterns: ((ruleElement.querySelector('.rule-patterns') as HTMLTextAreaElement)?.value || '').split('\n').filter(p => p.trim()),
         bypassList: ((ruleElement.querySelector('.rule-bypass') as HTMLTextAreaElement)?.value || '').split('\n').filter(p => p.trim())
       };
@@ -876,6 +995,7 @@ class OptionsController {
   private handleResetProxyConfig(): void {
     this.currentProxyConfig = {
       enabled: false,
+      profiles: [],
       rules: []
     };
 
@@ -883,15 +1003,161 @@ class OptionsController {
     this.showStatus('Proxy configuration reset to defaults', 'info');
   }
 
+  private handleAddProxyProfile(): void {
+    if (!this.currentProxyConfig) {
+      this.currentProxyConfig = { enabled: false, profiles: [], rules: [] };
+    }
+
+    const newProfile: ProxyProfile = {
+      id: this.generateProfileId(),
+      name: `Profile ${this.currentProxyConfig.profiles.length + 1}`,
+      proxyType: 'http',
+      host: '127.0.0.1',
+      port: 8080,
+      description: 'New proxy profile'
+    };
+
+    this.currentProxyConfig.profiles.push(newProfile);
+    this.renderProxyProfiles(this.currentProxyConfig.profiles);
+    
+    // Update all profile selects
+    this.updateAllProfileSelects();
+    
+    this.showStatus('New proxy profile added', 'info');
+  }
+
+  private generateProfileId(): string {
+    return 'proxy-profile-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  }
+
+  private updateAllProfileSelects(): void {
+    // Update global proxy profile select
+    if (this.currentProxyConfig) {
+      this.updateGlobalProxyProfileSelect(this.currentProxyConfig.profiles, this.currentProxyConfig.globalProxyProfileId);
+      
+      // Update all rule profile selects
+      const ruleElements = this.elements.proxyRulesList?.querySelectorAll('.proxy-rule');
+      ruleElements?.forEach(ruleElement => {
+        const ruleId = ruleElement.getAttribute('data-rule-id');
+        if (ruleId) {
+          const rule = this.currentProxyConfig!.rules.find(r => r.id === ruleId);
+          if (rule) {
+            this.updateRuleProfileSelect(ruleElement as HTMLElement, rule.profileId);
+          }
+        }
+      });
+    }
+  }
+
   private handleAddProxyRule(): void {
     if (!this.currentProxyConfig) {
-      this.currentProxyConfig = { enabled: false, rules: [] };
+      this.currentProxyConfig = { enabled: false, profiles: [], rules: [] };
     }
 
     const newRule = this.createDefaultRule();
     this.currentProxyConfig.rules.push(newRule);
     this.renderProxyRules(this.currentProxyConfig.rules);
     this.showStatus('New proxy rule added', 'info');
+  }
+
+  private createDefaultRule(): ProxyRule {
+    return {
+      id: this.generateRuleId(),
+      name: `Rule ${(this.currentProxyConfig?.rules.length || 0) + 1}`,
+      enabled: true,
+      domainPatterns: ['*.example.com'],
+      profileId: '', // Will need to be set to an existing profile ID
+      bypassList: ['localhost', '127.0.0.1', '*.local']
+    };
+  }
+
+  private generateRuleId(): string {
+    return 'proxy-rule-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  }
+
+  private async handleTestProxyProfile(profileId: string): Promise<void> {
+    if (!this.currentProxyConfig) return;
+
+    const profile = this.currentProxyConfig.profiles.find(p => p.id === profileId);
+    if (!profile) return;
+
+    try {
+      // Get current values from DOM for this profile
+      const profileElement = document.querySelector(`[data-profile-id="${profileId}"]`);
+      if (profileElement) {
+        const currentProfile: ProxyProfile = {
+          id: profile.id,
+          name: (profileElement.querySelector('.profile-name') as HTMLInputElement)?.value || profile.name,
+          proxyType: (profileElement.querySelector('.profile-type') as HTMLSelectElement)?.value as any || profile.proxyType,
+          host: (profileElement.querySelector('.profile-host') as HTMLInputElement)?.value || profile.host,
+          port: parseInt((profileElement.querySelector('.profile-port') as HTMLInputElement)?.value || '0') || profile.port,
+          username: (profileElement.querySelector('.profile-username') as HTMLInputElement)?.value || profile.username,
+          password: (profileElement.querySelector('.profile-password') as HTMLInputElement)?.value || profile.password,
+          description: (profileElement.querySelector('.profile-description') as HTMLInputElement)?.value || profile.description
+        };
+
+        this.showStatus(`Testing ${currentProfile.proxyType.toUpperCase()} proxy ${currentProfile.host}:${currentProfile.port}...`, 'info');
+        
+        // Create a temporary rule for testing
+        const testRule: ProxyRule = {
+          id: 'test-rule',
+          name: 'Test Rule',
+          enabled: true,
+          domainPatterns: ['*'],
+          profileId: currentProfile.id,
+          bypassList: []
+        };
+
+        // We need to test using the profile data directly since backend expects a ProxyRule
+        // Convert profile to old format for testing compatibility
+        const legacyRuleForTest = {
+          ...testRule,
+          proxyType: currentProfile.proxyType,
+          host: currentProfile.host,
+          port: currentProfile.port,
+          username: currentProfile.username,
+          password: currentProfile.password
+        };
+
+        const response = await chrome.runtime.sendMessage({
+          action: 'testProxyConnection',
+          proxyRule: legacyRuleForTest,
+          testUrl: 'https://www.google.com'
+        });
+
+        if (response.success) {
+          const isValid = response.data.isValid;
+          if (isValid) {
+            this.showStatus(`✅ Profile test passed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port})`, 'success');
+          } else {
+            this.showStatus(`❌ Profile test failed for ${currentProfile.name} (${currentProfile.host}:${currentProfile.port}). Check host, port, and credentials.`, 'error');
+          }
+        } else {
+          this.showStatus(`❌ Profile test error: ${response.error}`, 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error testing profile:', error);
+      this.showStatus('❌ Error testing profile connection. Check browser console for details.', 'error');
+    }
+  }
+
+  private handleRemoveProxyProfile(profileId: string): void {
+    if (!this.currentProxyConfig) return;
+
+    // Check if profile is being used
+    const isUsedByRules = this.currentProxyConfig.rules.some(rule => rule.profileId === profileId);
+    const isUsedByGlobal = this.currentProxyConfig.globalProxyProfileId === profileId;
+
+    if (isUsedByRules || isUsedByGlobal) {
+      this.showStatus('❌ Cannot remove profile - it is being used by rules or global proxy', 'error');
+      return;
+    }
+
+    this.currentProxyConfig.profiles = this.currentProxyConfig.profiles.filter(p => p.id !== profileId);
+    this.renderProxyProfiles(this.currentProxyConfig.profiles);
+    this.updateAllProfileSelects();
+    this.showStatus('Proxy profile removed', 'info');
   }
 
   private async handleTestAllProxies(): Promise<void> {
@@ -996,21 +1262,29 @@ class OptionsController {
         if (this.currentProxyConfig) {
           debugInfo += `Extension Proxy Enabled: ${this.currentProxyConfig.enabled}\n`;
           debugInfo += `Number of Rules: ${this.currentProxyConfig.rules.length}\n`;
-          debugInfo += `Global Proxy: ${this.currentProxyConfig.globalProxy ? 'Yes' : 'No'}\n\n`;
+          debugInfo += `Global Proxy: ${this.currentProxyConfig.globalProxyProfileId ? 'Yes' : 'No'}\n\n`;
           
-          if (this.currentProxyConfig.globalProxy) {
-            debugInfo += `Global Proxy Details:\n`;
-            debugInfo += `  Type: ${this.currentProxyConfig.globalProxy.proxyType}\n`;
-            debugInfo += `  Host: ${this.currentProxyConfig.globalProxy.host}\n`;
-            debugInfo += `  Port: ${this.currentProxyConfig.globalProxy.port}\n`;
-            debugInfo += `  Auth: ${this.currentProxyConfig.globalProxy.username ? 'Yes' : 'No'}\n\n`;
+          if (this.currentProxyConfig.globalProxyProfileId) {
+            const globalProfile = this.findProfileById(this.currentProxyConfig.globalProxyProfileId);
+            if (globalProfile) {
+              debugInfo += `Global Proxy Details:\n`;
+              debugInfo += `  Type: ${globalProfile.proxyType}\n`;
+              debugInfo += `  Host: ${globalProfile.host}\n`;
+              debugInfo += `  Port: ${globalProfile.port}\n`;
+              debugInfo += `  Auth: ${globalProfile.username ? 'Yes' : 'No'}\n\n`;
+            }
           }
           
           if (this.currentProxyConfig.rules.length > 0) {
             debugInfo += `Proxy Rules:\n`;
             this.currentProxyConfig.rules.forEach((rule, index) => {
               debugInfo += `  ${index + 1}. ${rule.name} (${rule.enabled ? 'Enabled' : 'Disabled'})\n`;
-              debugInfo += `     Type: ${rule.proxyType}, Host: ${rule.host}:${rule.port}\n`;
+              const profile = this.findProfileById(rule.profileId);
+              if (profile) {
+                debugInfo += `     Profile: ${profile.name} (${profile.proxyType.toUpperCase()} ${profile.host}:${profile.port})\n`;
+              } else {
+                debugInfo += `     Profile: Not found (ID: ${rule.profileId})\n`;
+              }
               debugInfo += `     Patterns: ${rule.domainPatterns.join(', ')}\n`;
               if (rule.bypassList && rule.bypassList.length > 0) {
                 debugInfo += `     Bypass: ${rule.bypassList.join(', ')}\n`;

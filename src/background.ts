@@ -1082,7 +1082,7 @@ class BackgroundController {
       this.handleTrackEvent('proxy_config_saved', {
         enabled: config.enabled,
         rulesCount: config.rules.length,
-        hasGlobalProxy: !!config.globalProxy,
+        hasGlobalProxy: !!config.globalProxyProfileId,
         timestamp: Date.now()
       });
     } catch (error) {
