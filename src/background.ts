@@ -1211,8 +1211,11 @@ class BackgroundController {
       }
       
       const storageExport = await this.storageManager.exportStorage(url, tabId);
+      const indexedDBCount = Object.values(storageExport.indexedDB || {}).reduce((total, db) => {
+        return total + Object.values(db.objectStores).reduce((storeTotal, store) => storeTotal + store.data.length, 0);
+      }, 0);
       console.log('💾 [BACKGROUND] Storage export successful:', storageExport.domain, 
-        `(${storageExport.cookies.length} cookies, ${Object.keys(storageExport.localStorage).length} localStorage, ${Object.keys(storageExport.sessionStorage).length} sessionStorage)`);
+        `(${storageExport.cookies.length} cookies, ${Object.keys(storageExport.localStorage).length} localStorage, ${Object.keys(storageExport.sessionStorage).length} sessionStorage, ${indexedDBCount} IndexedDB items)`);
       
       sendResponse({
         success: true,
@@ -1360,7 +1363,8 @@ class BackgroundController {
         timestamp: cookieData.timestamp,
         cookies: cookieData.cookies,
         localStorage: {},
-        sessionStorage: {}
+        sessionStorage: {},
+        indexedDB: {}
       };
       
       await this.storageManager.importStorage(storageData);

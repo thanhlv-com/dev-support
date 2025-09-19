@@ -18,6 +18,26 @@ export interface LocalStorageData {
   [key: string]: string;
 }
 
+export interface IndexedDBData {
+  [databaseName: string]: {
+    version: number;
+    objectStores: {
+      [storeName: string]: {
+        keyPath?: string | string[];
+        autoIncrement?: boolean;
+        data: any[];
+        indexes?: {
+          [indexName: string]: {
+            keyPath: string | string[];
+            unique: boolean;
+            multiEntry: boolean;
+          };
+        };
+      };
+    };
+  };
+}
+
 export interface StorageExport {
   domain: string;
   url: string;
@@ -25,6 +45,7 @@ export interface StorageExport {
   cookies: CookieData[];
   localStorage: LocalStorageData;
   sessionStorage: LocalStorageData;
+  indexedDB: IndexedDBData;
 }
 
 export class StorageManager {
@@ -68,25 +89,28 @@ export class StorageManager {
         console.warn('🍪 [WARN] Cookies API not available - missing permissions');
       }
 
-      // Export localStorage and sessionStorage
+      // Export localStorage, sessionStorage, and IndexedDB
       let localStorageData: LocalStorageData = {};
       let sessionStorageData: LocalStorageData = {};
+      let indexedDBData: IndexedDBData = {};
       
       if (tabId && chrome.scripting) {
-        console.log('💾 [DEBUG] Exporting localStorage and sessionStorage...');
+        console.log('💾 [DEBUG] Exporting localStorage, sessionStorage, and IndexedDB...');
         try {
           const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: 'MAIN',
-            func: () => {
+            func: async () => {
               // Standalone function to extract storage data
               const localStorageData: {[key: string]: string} = {};
               const sessionStorageData: {[key: string]: string} = {};
+              const indexedDBData: {[key: string]: any} = {};
 
               console.log('💾 [INJECT] Starting storage extraction...');
               console.log('💾 [INJECT] Window object available:', typeof window !== 'undefined');
               console.log('💾 [INJECT] localStorage available:', typeof localStorage !== 'undefined');
               console.log('💾 [INJECT] sessionStorage available:', typeof sessionStorage !== 'undefined');
+              console.log('💾 [INJECT] IndexedDB available:', typeof indexedDB !== 'undefined');
 
               try {
                 // Extract localStorage
@@ -128,7 +152,88 @@ export class StorageManager {
                 console.error('💾 [INJECT] Failed to access sessionStorage:', error);
               }
 
-              const result = { localStorage: localStorageData, sessionStorage: sessionStorageData };
+              try {
+                // Extract IndexedDB
+                if (typeof indexedDB !== 'undefined') {
+                  console.log('💾 [INJECT] Starting IndexedDB extraction...');
+                  
+                  // Get all database names
+                  const databases = await indexedDB.databases();
+                  console.log('💾 [INJECT] Found databases:', databases.length);
+                  
+                  for (const dbInfo of databases) {
+                    if (!dbInfo.name) continue;
+                    
+                    console.log('💾 [INJECT] Processing database:', dbInfo.name, 'version:', dbInfo.version);
+                    
+                    try {
+                      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+                        const request = indexedDB.open(dbInfo.name!, dbInfo.version);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                        request.onblocked = () => reject(new Error('Database blocked'));
+                      });
+                      
+                      const dbData: any = {
+                        version: db.version,
+                        objectStores: {}
+                      };
+                      
+                      // Extract data from each object store
+                      for (const storeName of Array.from(db.objectStoreNames)) {
+                        console.log('💾 [INJECT] Processing object store:', storeName);
+                        
+                        const transaction = db.transaction([storeName], 'readonly');
+                        const store = transaction.objectStore(storeName);
+                        
+                        // Get store metadata
+                        const storeData: any = {
+                          keyPath: store.keyPath,
+                          autoIncrement: store.autoIncrement,
+                          data: [],
+                          indexes: {}
+                        };
+                        
+                        // Get all index metadata
+                        for (const indexName of Array.from(store.indexNames)) {
+                          const index = store.index(indexName);
+                          storeData.indexes[indexName] = {
+                            keyPath: index.keyPath,
+                            unique: index.unique,
+                            multiEntry: index.multiEntry
+                          };
+                        }
+                        
+                        // Get all data from the store
+                        const allData = await new Promise<any[]>((resolve, reject) => {
+                          const request = store.getAll();
+                          request.onsuccess = () => resolve(request.result || []);
+                          request.onerror = () => reject(request.error);
+                        });
+                        
+                        storeData.data = allData;
+                        dbData.objectStores[storeName] = storeData;
+                        
+                        console.log('💾 [INJECT] Extracted', allData.length, 'items from store:', storeName);
+                      }
+                      
+                      db.close();
+                      indexedDBData[dbInfo.name] = dbData;
+                      
+                    } catch (dbError) {
+                      console.warn('💾 [INJECT] Failed to process database:', dbInfo.name, dbError);
+                    }
+                  }
+                  
+                  console.log('💾 [INJECT] IndexedDB extraction complete, databases found:', Object.keys(indexedDBData).length);
+                } else {
+                  console.warn('💾 [INJECT] IndexedDB not available');
+                }
+              } catch (error) {
+                console.error('💾 [INJECT] Failed to access IndexedDB:', error);
+              }
+
+              const result = { localStorage: localStorageData, sessionStorage: sessionStorageData, indexedDB: indexedDBData };
               console.log('💾 [INJECT] Final result:', result);
               return result;
             }
@@ -138,15 +243,17 @@ export class StorageManager {
             const storageResult = results[0].result;
             localStorageData = storageResult.localStorage || {};
             sessionStorageData = storageResult.sessionStorage || {};
+            indexedDBData = storageResult.indexedDB || {};
             console.log('💾 [DEBUG] localStorage items:', Object.keys(localStorageData).length);
             console.log('💾 [DEBUG] sessionStorage items:', Object.keys(sessionStorageData).length);
+            console.log('💾 [DEBUG] IndexedDB databases:', Object.keys(indexedDBData).length);
           }
         } catch (storageError) {
-          console.warn('💾 [WARN] Failed to export localStorage/sessionStorage:', storageError);
+          console.warn('💾 [WARN] Failed to export localStorage/sessionStorage/IndexedDB:', storageError);
           console.warn('💾 [WARN] Error details:', storageError);
         }
       } else {
-        console.warn('💾 [WARN] Cannot export localStorage - missing tabId or scripting permission');
+        console.warn('💾 [WARN] Cannot export localStorage/IndexedDB - missing tabId or scripting permission');
       }
 
       const exportData: StorageExport = {
@@ -155,11 +262,15 @@ export class StorageManager {
         timestamp: Date.now(),
         cookies: cookieData,
         localStorage: localStorageData,
-        sessionStorage: sessionStorageData
+        sessionStorage: sessionStorageData,
+        indexedDB: indexedDBData
       };
 
-      const totalItems = cookieData.length + Object.keys(localStorageData).length + Object.keys(sessionStorageData).length;
-      console.log('💾 [SUCCESS] Exported storage for:', domain, `(${totalItems} total items: ${cookieData.length} cookies, ${Object.keys(localStorageData).length} localStorage, ${Object.keys(sessionStorageData).length} sessionStorage)`);
+      const indexedDBCount = Object.values(indexedDBData).reduce((total, db) => {
+        return total + Object.values(db.objectStores).reduce((storeTotal, store) => storeTotal + store.data.length, 0);
+      }, 0);
+      const totalItems = cookieData.length + Object.keys(localStorageData).length + Object.keys(sessionStorageData).length + indexedDBCount;
+      console.log('💾 [SUCCESS] Exported storage for:', domain, `(${totalItems} total items: ${cookieData.length} cookies, ${Object.keys(localStorageData).length} localStorage, ${Object.keys(sessionStorageData).length} sessionStorage, ${indexedDBCount} IndexedDB items)`);
       return exportData;
     } catch (error) {
       console.error('❌ [ERROR] Error exporting storage:', error);
@@ -202,7 +313,7 @@ export class StorageManager {
     try {
       console.log('💾 [DEBUG] Starting storage import for:', storageExport.domain);
       
-      const { cookies, localStorage: localStorageData, sessionStorage: sessionStorageData, url } = storageExport;
+      const { cookies, localStorage: localStorageData, sessionStorage: sessionStorageData, indexedDB: indexedDBData, url } = storageExport;
       const urlObj = new URL(url);
       
       let cookieImportedCount = 0;
@@ -234,24 +345,27 @@ export class StorageManager {
         }
       }
 
-      // Import localStorage and sessionStorage
+      // Import localStorage, sessionStorage, and IndexedDB
       let storageImportedCount = 0;
-      if (tabId && chrome.scripting && (Object.keys(localStorageData).length > 0 || Object.keys(sessionStorageData).length > 0)) {
-        console.log('💾 [DEBUG] Importing localStorage and sessionStorage...');
+      if (tabId && chrome.scripting && (Object.keys(localStorageData).length > 0 || Object.keys(sessionStorageData).length > 0 || Object.keys(indexedDBData || {}).length > 0)) {
+        console.log('💾 [DEBUG] Importing localStorage, sessionStorage, and IndexedDB...');
         try {
           await chrome.scripting.executeScript({
             target: { tabId },
             world: 'MAIN',
-            func: (localData: {[key: string]: string}, sessionData: {[key: string]: string}) => {
+            func: async (localData: {[key: string]: string}, sessionData: {[key: string]: string}, indexedData: any) => {
               // Standalone function to inject storage data
               let localStorageRestored = 0;
               let sessionStorageRestored = 0;
+              let indexedDBRestored = 0;
 
               console.log('💾 [INJECT-IMPORT] Starting storage import...');
               console.log('💾 [INJECT-IMPORT] localStorage items to import:', Object.keys(localData).length);
               console.log('💾 [INJECT-IMPORT] sessionStorage items to import:', Object.keys(sessionData).length);
+              console.log('💾 [INJECT-IMPORT] IndexedDB databases to import:', Object.keys(indexedData || {}).length);
               console.log('💾 [INJECT-IMPORT] localStorage available:', typeof localStorage !== 'undefined');
               console.log('💾 [INJECT-IMPORT] sessionStorage available:', typeof sessionStorage !== 'undefined');
+              console.log('💾 [INJECT-IMPORT] IndexedDB available:', typeof indexedDB !== 'undefined');
 
               try {
                 // Restore localStorage
@@ -295,16 +409,119 @@ export class StorageManager {
                 console.error('💾 [INJECT-IMPORT] Failed to access sessionStorage for import:', error);
               }
 
-              const result = { localStorageRestored, sessionStorageRestored };
+              try {
+                // Restore IndexedDB
+                if (typeof indexedDB !== 'undefined' && indexedData) {
+                  console.log('💾 [INJECT-IMPORT] Restoring IndexedDB databases...');
+                  
+                  for (const [dbName, dbData] of Object.entries(indexedData)) {
+                    console.log('💾 [INJECT-IMPORT] Restoring database:', dbName);
+                    
+                    try {
+                      // Delete existing database first
+                      await new Promise<void>((resolve, reject) => {
+                        const deleteRequest = indexedDB.deleteDatabase(dbName);
+                        deleteRequest.onsuccess = () => resolve();
+                        deleteRequest.onerror = () => reject(deleteRequest.error);
+                        deleteRequest.onblocked = () => {
+                          console.warn('💾 [INJECT-IMPORT] Database deletion blocked for:', dbName);
+                          resolve(); // Continue anyway
+                        };
+                      });
+                      
+                      // Create new database with imported data
+                      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+                        const request = indexedDB.open(dbName, (dbData as any).version);
+                        
+                        request.onupgradeneeded = (event) => {
+                          const db = (event.target as IDBOpenDBRequest).result;
+                          const dbInfo = dbData as any;
+                          
+                          // Create object stores
+                          for (const [storeName, storeData] of Object.entries(dbInfo.objectStores)) {
+                            const storeInfo = storeData as any;
+                            
+                            // Create object store
+                            const objectStore = db.createObjectStore(storeName, {
+                              keyPath: storeInfo.keyPath,
+                              autoIncrement: storeInfo.autoIncrement
+                            });
+                            
+                            // Create indexes
+                            if (storeInfo.indexes) {
+                              for (const [indexName, indexInfo] of Object.entries(storeInfo.indexes)) {
+                                const idx = indexInfo as any;
+                                objectStore.createIndex(indexName, idx.keyPath, {
+                                  unique: idx.unique,
+                                  multiEntry: idx.multiEntry
+                                });
+                              }
+                            }
+                          }
+                        };
+                        
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                      });
+                      
+                      // Import data into object stores
+                      const dbInfo = dbData as any;
+                      for (const [storeName, storeData] of Object.entries(dbInfo.objectStores)) {
+                        const storeInfo = storeData as any;
+                        
+                        if (storeInfo.data && storeInfo.data.length > 0) {
+                          const transaction = db.transaction([storeName], 'readwrite');
+                          const store = transaction.objectStore(storeName);
+                          
+                          for (const item of storeInfo.data) {
+                            try {
+                              await new Promise<void>((resolve, reject) => {
+                                const request = store.add(item);
+                                request.onsuccess = () => {
+                                  indexedDBRestored++;
+                                  resolve();
+                                };
+                                request.onerror = () => reject(request.error);
+                              });
+                            } catch (itemError) {
+                              console.warn('⚠️ [INJECT-IMPORT] Failed to restore IndexedDB item:', itemError);
+                            }
+                          }
+                          
+                          console.log('✅ [INJECT-IMPORT] Restored', storeInfo.data.length, 'items to store:', storeName);
+                        }
+                      }
+                      
+                      db.close();
+                      console.log('✅ [INJECT-IMPORT] Restored database:', dbName);
+                      
+                    } catch (dbError) {
+                      console.warn('⚠️ [INJECT-IMPORT] Failed to restore database:', dbName, dbError);
+                    }
+                  }
+                  
+                  console.log('💾 [INJECT-IMPORT] IndexedDB restore complete:', indexedDBRestored, 'items');
+                } else {
+                  console.warn('💾 [INJECT-IMPORT] IndexedDB not available for import');
+                }
+              } catch (error) {
+                console.error('💾 [INJECT-IMPORT] Failed to access IndexedDB for import:', error);
+              }
+
+              const result = { localStorageRestored, sessionStorageRestored, indexedDBRestored };
               console.log('💾 [INJECT-IMPORT] Final import result:', result);
               return result;
             },
-            args: [localStorageData, sessionStorageData]
+            args: [localStorageData, sessionStorageData, indexedDBData || {}]
           });
-          storageImportedCount = Object.keys(localStorageData).length + Object.keys(sessionStorageData).length;
+          
+          const indexedDBCount = Object.values(indexedDBData || {}).reduce((total, db) => {
+            return total + Object.values(db.objectStores).reduce((storeTotal, store) => storeTotal + store.data.length, 0);
+          }, 0);
+          storageImportedCount = Object.keys(localStorageData).length + Object.keys(sessionStorageData).length + indexedDBCount;
           console.log('💾 [DEBUG] Storage data injected successfully');
         } catch (storageError) {
-          console.warn('💾 [WARN] Failed to import localStorage/sessionStorage:', storageError);
+          console.warn('💾 [WARN] Failed to import localStorage/sessionStorage/IndexedDB:', storageError);
           console.warn('💾 [WARN] Error details:', storageError);
         }
       }
@@ -321,7 +538,7 @@ export class StorageManager {
   /**
    * Clear all storage data (cookies, localStorage, sessionStorage) for the current domain
    */
-  async clearStorage(url: string, tabId?: number): Promise<{ cookies: number; localStorage: number; sessionStorage: number }> {
+  async clearStorage(url: string, tabId?: number): Promise<{ cookies: number; localStorage: number; sessionStorage: number; indexedDB: number }> {
     try {
       console.log('🧹 [DEBUG] Starting storage clear for URL:', url);
       const urlObj = new URL(url);
@@ -329,6 +546,7 @@ export class StorageManager {
       let cookiesClearedCount = 0;
       let localStorageClearedCount = 0;  
       let sessionStorageClearedCount = 0;
+      let indexedDBClearedCount = 0;
 
       // Clear cookies
       if (chrome.cookies) {
@@ -346,20 +564,22 @@ export class StorageManager {
         }
       }
 
-      // Clear localStorage and sessionStorage
+      // Clear localStorage, sessionStorage, and IndexedDB
       if (tabId && chrome.scripting) {
         try {
           const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: 'MAIN',
-            func: () => {
+            func: async () => {
               // Standalone function to clear storage data
               let localStorageCleared = 0;
               let sessionStorageCleared = 0;
+              let indexedDBCleared = 0;
 
               console.log('🧹 [INJECT-CLEAR] Starting storage clear...');
               console.log('🧹 [INJECT-CLEAR] localStorage available:', typeof localStorage !== 'undefined');
               console.log('🧹 [INJECT-CLEAR] sessionStorage available:', typeof sessionStorage !== 'undefined');
+              console.log('🧹 [INJECT-CLEAR] IndexedDB available:', typeof indexedDB !== 'undefined');
 
               try {
                 if (typeof localStorage !== 'undefined') {
@@ -383,7 +603,70 @@ export class StorageManager {
                 console.error('🧹 [INJECT-CLEAR] Failed to clear sessionStorage:', error);
               }
 
-              const result = { localStorage: localStorageCleared, sessionStorage: sessionStorageCleared };
+              try {
+                if (typeof indexedDB !== 'undefined') {
+                  console.log('🧹 [INJECT-CLEAR] Starting IndexedDB clear...');
+                  
+                  // Get all database names
+                  const databases = await indexedDB.databases();
+                  console.log('🧹 [INJECT-CLEAR] Found databases to clear:', databases.length);
+                  
+                  for (const dbInfo of databases) {
+                    if (!dbInfo.name) continue;
+                    
+                    console.log('🧹 [INJECT-CLEAR] Clearing database:', dbInfo.name);
+                    
+                    try {
+                      // First, count items in the database
+                      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+                        const request = indexedDB.open(dbInfo.name!, dbInfo.version);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                        request.onblocked = () => reject(new Error('Database blocked'));
+                      });
+                      
+                      // Count items in each object store
+                      for (const storeName of Array.from(db.objectStoreNames)) {
+                        const transaction = db.transaction([storeName], 'readonly');
+                        const store = transaction.objectStore(storeName);
+                        
+                        const count = await new Promise<number>((resolve, reject) => {
+                          const request = store.count();
+                          request.onsuccess = () => resolve(request.result || 0);
+                          request.onerror = () => reject(request.error);
+                        });
+                        
+                        indexedDBCleared += count;
+                      }
+                      
+                      db.close();
+                      
+                      // Delete the database
+                      await new Promise<void>((resolve, reject) => {
+                        const deleteRequest = indexedDB.deleteDatabase(dbInfo.name!);
+                        deleteRequest.onsuccess = () => {
+                          console.log('✅ [INJECT-CLEAR] Cleared database:', dbInfo.name);
+                          resolve();
+                        };
+                        deleteRequest.onerror = () => reject(deleteRequest.error);
+                        deleteRequest.onblocked = () => {
+                          console.warn('🧹 [INJECT-CLEAR] Database deletion blocked for:', dbInfo.name);
+                          resolve(); // Continue anyway
+                        };
+                      });
+                      
+                    } catch (dbError) {
+                      console.warn('⚠️ [INJECT-CLEAR] Failed to clear database:', dbInfo.name, dbError);
+                    }
+                  }
+                  
+                  console.log('🧹 [INJECT-CLEAR] IndexedDB clear complete:', indexedDBCleared, 'items');
+                }
+              } catch (error) {
+                console.error('🧹 [INJECT-CLEAR] Failed to clear IndexedDB:', error);
+              }
+
+              const result = { localStorage: localStorageCleared, sessionStorage: sessionStorageCleared, indexedDB: indexedDBCleared };
               console.log('🧹 [INJECT-CLEAR] Final clear result:', result);
               return result;
             }
@@ -393,20 +676,22 @@ export class StorageManager {
             const clearResult = results[0].result;
             localStorageClearedCount = clearResult.localStorage || 0;
             sessionStorageClearedCount = clearResult.sessionStorage || 0;
+            indexedDBClearedCount = clearResult.indexedDB || 0;
           }
         } catch (storageError) {
-          console.warn('💾 [WARN] Failed to clear localStorage/sessionStorage:', storageError);
+          console.warn('💾 [WARN] Failed to clear localStorage/sessionStorage/IndexedDB:', storageError);
           console.warn('💾 [WARN] Error details:', storageError);
         }
       }
 
-      const totalCleared = cookiesClearedCount + localStorageClearedCount + sessionStorageClearedCount;
-      console.log(`🧹 [SUCCESS] Cleared ${totalCleared} items for ${urlObj.hostname}: ${cookiesClearedCount} cookies, ${localStorageClearedCount} localStorage, ${sessionStorageClearedCount} sessionStorage`);
+      const totalCleared = cookiesClearedCount + localStorageClearedCount + sessionStorageClearedCount + indexedDBClearedCount;
+      console.log(`🧹 [SUCCESS] Cleared ${totalCleared} items for ${urlObj.hostname}: ${cookiesClearedCount} cookies, ${localStorageClearedCount} localStorage, ${sessionStorageClearedCount} sessionStorage, ${indexedDBClearedCount} IndexedDB items`);
       
       return {
         cookies: cookiesClearedCount,
         localStorage: localStorageClearedCount,
-        sessionStorage: sessionStorageClearedCount
+        sessionStorage: sessionStorageClearedCount,
+        indexedDB: indexedDBClearedCount
       };
     } catch (error) {
       console.error('❌ Error clearing storage:', error);
@@ -418,11 +703,12 @@ export class StorageManager {
   /**
    * Get storage counts for the current domain
    */
-  async getStorageCount(url: string, tabId?: number): Promise<{ cookies: number; localStorage: number; sessionStorage: number; total: number }> {
+  async getStorageCount(url: string, tabId?: number): Promise<{ cookies: number; localStorage: number; sessionStorage: number; indexedDB: number; total: number }> {
     try {
       let cookieCount = 0;
       let localStorageCount = 0;
       let sessionStorageCount = 0;
+      let indexedDBCount = 0;
 
       // Get cookie count
       if (chrome.cookies) {
@@ -430,20 +716,22 @@ export class StorageManager {
         cookieCount = cookies.length;
       }
 
-      // Get localStorage and sessionStorage counts
+      // Get localStorage, sessionStorage, and IndexedDB counts
       if (tabId && chrome.scripting) {
         try {
           const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: 'MAIN',
-            func: () => {
+            func: async () => {
               // Standalone function to get storage counts
               let localStorageCount = 0;
               let sessionStorageCount = 0;
+              let indexedDBCount = 0;
 
               console.log('📊 [INJECT-COUNT] Starting storage count...');
               console.log('📊 [INJECT-COUNT] localStorage available:', typeof localStorage !== 'undefined');
               console.log('📊 [INJECT-COUNT] sessionStorage available:', typeof sessionStorage !== 'undefined');
+              console.log('📊 [INJECT-COUNT] IndexedDB available:', typeof indexedDB !== 'undefined');
 
               try {
                 if (typeof localStorage !== 'undefined') {
@@ -473,7 +761,56 @@ export class StorageManager {
                 console.error('📊 [INJECT-COUNT] Failed to access sessionStorage for count:', error);
               }
 
-              const result = { localStorage: localStorageCount, sessionStorage: sessionStorageCount };
+              try {
+                if (typeof indexedDB !== 'undefined') {
+                  console.log('📊 [INJECT-COUNT] Starting IndexedDB count...');
+                  
+                  // Get all database names
+                  const databases = await indexedDB.databases();
+                  console.log('📊 [INJECT-COUNT] Found databases:', databases.length);
+                  
+                  for (const dbInfo of databases) {
+                    if (!dbInfo.name) continue;
+                    
+                    console.log('📊 [INJECT-COUNT] Counting database:', dbInfo.name);
+                    
+                    try {
+                      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+                        const request = indexedDB.open(dbInfo.name!, dbInfo.version);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                        request.onblocked = () => reject(new Error('Database blocked'));
+                      });
+                      
+                      // Count items in each object store
+                      for (const storeName of Array.from(db.objectStoreNames)) {
+                        const transaction = db.transaction([storeName], 'readonly');
+                        const store = transaction.objectStore(storeName);
+                        
+                        const count = await new Promise<number>((resolve, reject) => {
+                          const request = store.count();
+                          request.onsuccess = () => resolve(request.result || 0);
+                          request.onerror = () => reject(request.error);
+                        });
+                        
+                        indexedDBCount += count;
+                        console.log('📊 [INJECT-COUNT] Store', storeName, 'count:', count);
+                      }
+                      
+                      db.close();
+                      
+                    } catch (dbError) {
+                      console.warn('📊 [INJECT-COUNT] Failed to count database:', dbInfo.name, dbError);
+                    }
+                  }
+                  
+                  console.log('📊 [INJECT-COUNT] IndexedDB total count:', indexedDBCount);
+                }
+              } catch (error) {
+                console.error('📊 [INJECT-COUNT] Failed to access IndexedDB for count:', error);
+              }
+
+              const result = { localStorage: localStorageCount, sessionStorage: sessionStorageCount, indexedDB: indexedDBCount };
               console.log('📊 [INJECT-COUNT] Final count result:', result);
               return result;
             }
@@ -483,18 +820,19 @@ export class StorageManager {
             const counts = results[0].result;
             localStorageCount = counts.localStorage || 0;
             sessionStorageCount = counts.sessionStorage || 0;
+            indexedDBCount = counts.indexedDB || 0;
           }
         } catch (storageError) {
-          console.warn('💾 [WARN] Failed to get localStorage/sessionStorage counts:', storageError);
+          console.warn('💾 [WARN] Failed to get localStorage/sessionStorage/IndexedDB counts:', storageError);
           console.warn('💾 [WARN] Error details:', storageError);
         }
       }
 
-      const total = cookieCount + localStorageCount + sessionStorageCount;
-      return { cookies: cookieCount, localStorage: localStorageCount, sessionStorage: sessionStorageCount, total };
+      const total = cookieCount + localStorageCount + sessionStorageCount + indexedDBCount;
+      return { cookies: cookieCount, localStorage: localStorageCount, sessionStorage: sessionStorageCount, indexedDB: indexedDBCount, total };
     } catch (error) {
       console.error('❌ Error getting storage counts:', error);
-      return { cookies: 0, localStorage: 0, sessionStorage: 0, total: 0 };
+      return { cookies: 0, localStorage: 0, sessionStorage: 0, indexedDB: 0, total: 0 };
     }
   }
 
@@ -507,7 +845,10 @@ export class StorageManager {
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
-    const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage).length + Object.keys(storageExport.sessionStorage).length;
+    const indexedDBCount = Object.values(storageExport.indexedDB || {}).reduce((total, db) => {
+      return total + Object.values(db.objectStores).reduce((storeTotal, store) => storeTotal + store.data.length, 0);
+    }, 0);
+    const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage).length + Object.keys(storageExport.sessionStorage).length + indexedDBCount;
     const filename = `storage_${storageExport.domain}_${totalItems}items_${new Date().toISOString().split('T')[0]}.json`;
     
     const a = document.createElement('a');
@@ -533,7 +874,7 @@ export class StorageManager {
           const storageExport = JSON.parse(content) as any;
           
           // Check if it's the old cookie format and convert it
-          if (storageExport.cookies && !storageExport.localStorage && !storageExport.sessionStorage) {
+          if (storageExport.cookies && !storageExport.localStorage && !storageExport.sessionStorage && !storageExport.indexedDB) {
             console.log('📥 Converting legacy cookie file format...');
             const legacyData = storageExport as CookieData;
             const convertedData: StorageExport = {
@@ -542,7 +883,8 @@ export class StorageManager {
               timestamp: storageExport.timestamp || Date.now(),
               cookies: storageExport.cookies || [],
               localStorage: {},
-              sessionStorage: {}
+              sessionStorage: {},
+              indexedDB: {}
             };
             resolve(convertedData);
             return;
@@ -553,14 +895,15 @@ export class StorageManager {
             throw new Error('Invalid storage file format - missing domain or cookies array');
           }
           
-          // Ensure localStorage and sessionStorage exist
+          // Ensure localStorage, sessionStorage, and indexedDB exist
           const validatedExport: StorageExport = {
             domain: storageExport.domain,
             url: storageExport.url,
             timestamp: storageExport.timestamp || Date.now(),
             cookies: storageExport.cookies || [],
             localStorage: storageExport.localStorage || {},
-            sessionStorage: storageExport.sessionStorage || {}
+            sessionStorage: storageExport.sessionStorage || {},
+            indexedDB: storageExport.indexedDB || {}
           };
           
           resolve(validatedExport);

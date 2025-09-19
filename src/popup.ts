@@ -455,7 +455,7 @@ class PopupController {
       console.log('💾 [POPUP] Storage count response:', response);
 
       if (response.success) {
-        const { domain, cookies, localStorage, sessionStorage, total } = response.data;
+        const { domain, cookies, localStorage, sessionStorage, indexedDB, total } = response.data;
         this.storageActionElements.storageCount.textContent = `${total} items for ${domain}`;
         
         if (this.storageActionElements.storageDetails) {
@@ -463,6 +463,7 @@ class PopupController {
           if (cookies > 0) parts.push(`${cookies} cookies`);
           if (localStorage > 0) parts.push(`${localStorage} localStorage`);
           if (sessionStorage > 0) parts.push(`${sessionStorage} sessionStorage`);
+          if (indexedDB > 0) parts.push(`${indexedDB} IndexedDB`);
           
           if (parts.length === 0) {
             this.storageActionElements.storageDetails.textContent = 'No storage data found';
@@ -513,7 +514,10 @@ class PopupController {
         const storageExport = response.data;
         console.log('💾 [POPUP] Storage export data received:', storageExport);
         this.downloadStorageAsFile(storageExport);
-        const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage || {}).length + Object.keys(storageExport.sessionStorage || {}).length;
+        const indexedDBCount = Object.values(storageExport.indexedDB || {}).reduce((total: number, db: any) => {
+          return total + Object.values(db.objectStores).reduce((storeTotal: number, store: any) => storeTotal + store.data.length, 0);
+        }, 0);
+        const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage || {}).length + Object.keys(storageExport.sessionStorage || {}).length + indexedDBCount;
         this.showStorageFeedback(`Exported ${totalItems} storage items for ${storageExport.domain}`, 'success');
         await this.updateStorageCount();
       } else {
@@ -581,7 +585,7 @@ class PopupController {
       }
 
       const urlObj = new URL(this.currentTab.url);
-      if (!confirm(`Clear all storage data (cookies, localStorage, sessionStorage) for ${urlObj.hostname}?`)) {
+      if (!confirm(`Clear all storage data (cookies, localStorage, sessionStorage, IndexedDB) for ${urlObj.hostname}?`)) {
         return;
       }
 
@@ -595,8 +599,8 @@ class PopupController {
       });
 
       if (response.success) {
-        const { domain, cookies, localStorage, sessionStorage } = response.data;
-        const totalCleared = cookies + localStorage + sessionStorage;
+        const { domain, cookies, localStorage, sessionStorage, indexedDB } = response.data;
+        const totalCleared = cookies + localStorage + sessionStorage + (indexedDB || 0);
         this.showStorageFeedback(`Cleared ${totalCleared} storage items for ${domain}`, 'success');
         await this.updateStorageCount();
       } else {
@@ -615,7 +619,10 @@ class PopupController {
     const blob = new Blob([jsonData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
-    const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage || {}).length + Object.keys(storageExport.sessionStorage || {}).length;
+    const indexedDBCount = Object.values(storageExport.indexedDB || {}).reduce((total: number, db: any) => {
+      return total + Object.values(db.objectStores).reduce((storeTotal: number, store: any) => storeTotal + store.data.length, 0);
+    }, 0);
+    const totalItems = storageExport.cookies.length + Object.keys(storageExport.localStorage || {}).length + Object.keys(storageExport.sessionStorage || {}).length + indexedDBCount;
     const filename = `storage_${storageExport.domain}_${totalItems}items_${new Date().toISOString().split('T')[0]}.json`;
     
     const a = document.createElement('a');
@@ -636,7 +643,7 @@ class PopupController {
           const data = JSON.parse(content) as any;
           
           // Check if it's the old cookie format and convert it
-          if (data.cookies && !data.localStorage && !data.sessionStorage) {
+          if (data.cookies && !data.localStorage && !data.sessionStorage && !data.indexedDB) {
             console.log('📥 Converting legacy cookie file format...');
             const convertedData: StorageExport = {
               domain: data.domain || new URL(data.url).hostname,
@@ -644,7 +651,8 @@ class PopupController {
               timestamp: data.timestamp || Date.now(),
               cookies: data.cookies || [],
               localStorage: {},
-              sessionStorage: {}
+              sessionStorage: {},
+              indexedDB: {}
             };
             resolve(convertedData);
             return;
@@ -655,14 +663,15 @@ class PopupController {
             throw new Error('Invalid storage file format - missing domain or cookies array');
           }
           
-          // Ensure localStorage and sessionStorage exist
+          // Ensure localStorage, sessionStorage, and indexedDB exist
           const validatedData: StorageExport = {
             domain: data.domain,
             url: data.url,
             timestamp: data.timestamp || Date.now(),
             cookies: data.cookies || [],
             localStorage: data.localStorage || {},
-            sessionStorage: data.sessionStorage || {}
+            sessionStorage: data.sessionStorage || {},
+            indexedDB: data.indexedDB || {}
           };
           
           resolve(validatedData);

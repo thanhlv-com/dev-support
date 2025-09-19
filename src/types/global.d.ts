@@ -117,6 +117,26 @@ declare global {
     [key: string]: string;
   }
 
+  interface IndexedDBData {
+    [databaseName: string]: {
+      version: number;
+      objectStores: {
+        [storeName: string]: {
+          keyPath?: string | string[];
+          autoIncrement?: boolean;
+          data: any[];
+          indexes?: {
+            [indexName: string]: {
+              keyPath: string | string[];
+              unique: boolean;
+              multiEntry: boolean;
+            };
+          };
+        };
+      };
+    };
+  }
+
   interface StorageExport {
     domain: string;
     url: string;
@@ -124,6 +144,7 @@ declare global {
     cookies: CookieData[];
     localStorage: LocalStorageData;
     sessionStorage: LocalStorageData;
+    indexedDB: IndexedDBData;
   }
 
   // Legacy cookie export interface for backward compatibility
