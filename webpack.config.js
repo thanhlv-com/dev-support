@@ -9,7 +9,7 @@ module.exports = (env, argv) => {
   
   return {
     entry: {
-      popup: './src/popup.ts',
+      popup: './src/popup.tsx',
       options: './src/options.ts',
       background: './src/background.ts',
       content: './src/content.ts'
@@ -22,7 +22,7 @@ module.exports = (env, argv) => {
     },
     
     resolve: {
-      extensions: ['.ts', '.tsx', '.js', '.json'],
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
       alias: {
         '@': path.resolve(__dirname, 'src')
       }
@@ -41,12 +41,12 @@ module.exports = (env, argv) => {
           exclude: /node_modules/
         },
         {
-          test: /\.js$/,
+          test: /\.(js|jsx)$/,
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
             options: {
-              presets: ['@babel/preset-env']
+              presets: ['@babel/preset-env', '@babel/preset-react']
             }
           }
         },
