@@ -116,10 +116,10 @@ class PopupController {
 
   private async updateActiveCount(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['mediumFreedium', 'jsonViewer', 'historyDeletion']);
+      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'historyDeletion']);
       
       let count = 0;
-      if (result.mediumFreedium !== false) count++; // Default to true
+      if (result.freediumFeature !== false) count++; // Default to true
       if (result.jsonViewer !== false) count++;     // Default to true
       if (result.historyDeletion?.enabled) count++;
       
@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Initialize default settings on extension install
 chrome.runtime.onInstalled?.addListener(() => {
   chrome.storage.sync.set({
-    mediumFreedium: true, // Enable by default
-    jsonViewer: true      // Enable by default
+    freediumFeature: true, // Enable by default
+    jsonViewer: true       // Enable by default
   });
 });

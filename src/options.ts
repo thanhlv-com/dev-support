@@ -338,6 +338,10 @@ class OptionsController {
     try {
       await chrome.storage.sync.set({ [feature]: enabled });
       console.log(`${feature} feature:`, enabled ? 'enabled' : 'disabled');
+      
+      // Notify all content scripts about the feature toggle
+      await this.notifyContentScripts(feature, enabled);
+      
       this.showStatus(`${this.getFeatureName(feature)} ${enabled ? 'enabled' : 'disabled'}`, 'success');
     } catch (error) {
       console.error(`Error toggling ${feature} feature:`, error);
@@ -351,6 +355,36 @@ class OptionsController {
       case 'freediumFeature': return 'Medium Freedium Redirect';
       case 'jsonViewer': return 'JSON Viewer';
       default: return feature;
+    }
+  }
+
+  private async notifyContentScripts(feature: 'freediumFeature' | 'jsonViewer', enabled: boolean): Promise<void> {
+    try {
+      // Get all tabs
+      const tabs = await chrome.tabs.query({});
+      
+      // Send message to each tab's content script
+      const promises = tabs.map(async (tab) => {
+        if (tab.id && tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+          try {
+            await chrome.tabs.sendMessage(tab.id, {
+              action: 'toggleFeature',
+              feature: feature,
+              enabled: enabled
+            });
+            console.log(`✅ Notified tab ${tab.id} about ${feature} toggle: ${enabled}`);
+          } catch (error) {
+            // Ignore errors for tabs that don't have content scripts loaded
+            console.log(`⚠️ Could not notify tab ${tab.id}: content script not available`);
+          }
+        }
+      });
+      
+      // Wait for all notifications to complete (ignoring failures)
+      await Promise.allSettled(promises);
+      console.log(`📢 Feature toggle notification sent to all tabs: ${feature} = ${enabled}`);
+    } catch (error) {
+      console.error('❌ Error notifying content scripts:', error);
     }
   }
 
