@@ -64,12 +64,13 @@ const PopupApp: React.FC = () => {
 
   const updateActiveCount = async () => {
     try {
-      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'historyDeletion']);
+      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'imageDownloaderButton', 'historyDeletion']);
       
       let count = 0;
       if (result.freediumFeature !== false) count++;
       if (result.jsonViewer !== false) count++;
       if (result.imageDownloader !== false) count++;
+      if (result.imageDownloaderButton !== false) count++;
       if (result.historyDeletion?.enabled) count++;
       
       setStatus(prev => ({

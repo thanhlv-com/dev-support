@@ -80,6 +80,7 @@ class ExtensionBackgroundController {
           freediumFeature: true, // Enable Medium Freedium by default
           jsonViewer: true,      // Enable JSON Viewer by default
           imageDownloader: true, // Enable Image Downloader by default
+          imageDownloaderButton: true, // Enable Floating Image Downloader Button by default
           historyDeletion: defaultHistoryConfig
         });
         console.log('✅ Default settings initialized');
@@ -319,7 +320,7 @@ class ExtensionBackgroundController {
 
   private async handleGetSettings(sendResponse: (response: ExtensionResponse) => void): Promise<void> {
     try {
-      const settings = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'historyDeletion']) as ChromeStorageResult;
+      const settings = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'imageDownloaderButton', 'historyDeletion']) as ChromeStorageResult;
       
       const defaultHistoryConfig: HistoryDeletionConfig = {
         enabled: false,
@@ -335,6 +336,7 @@ class ExtensionBackgroundController {
           freediumFeature: settings.freediumFeature !== false, // Default to true
           jsonViewer: settings.jsonViewer !== false,           // Default to true
           imageDownloader: settings.imageDownloader !== false, // Default to true
+          imageDownloaderButton: settings.imageDownloaderButton !== false, // Default to true
           historyDeletion: settings.historyDeletion || defaultHistoryConfig
         }
       });

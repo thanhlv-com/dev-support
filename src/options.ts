@@ -7,6 +7,7 @@ interface OptionsElements {
   freediumFeature: HTMLInputElement | null;
   jsonViewer: HTMLInputElement | null;
   imageDownloader: HTMLInputElement | null;
+  imageDownloaderButton: HTMLInputElement | null;
   historyDeletion: HTMLInputElement | null;
   proxyEnabled: HTMLInputElement | null;
   
@@ -63,6 +64,7 @@ class OptionsController {
       freediumFeature: null,
       jsonViewer: null,
       imageDownloader: null,
+      imageDownloaderButton: null,
       historyDeletion: null,
       proxyEnabled: null,
       historyConfig: null,
@@ -114,6 +116,7 @@ class OptionsController {
     this.elements.freediumFeature = document.getElementById('freediumFeature') as HTMLInputElement;
     this.elements.jsonViewer = document.getElementById('jsonViewer') as HTMLInputElement;
     this.elements.imageDownloader = document.getElementById('imageDownloader') as HTMLInputElement;
+    this.elements.imageDownloaderButton = document.getElementById('imageDownloaderButton') as HTMLInputElement;
     this.elements.historyDeletion = document.getElementById('historyDeletion') as HTMLInputElement;
     this.elements.proxyEnabled = document.getElementById('proxyEnabled') as HTMLInputElement;
     
@@ -178,6 +181,9 @@ class OptionsController {
         if (this.elements.imageDownloader) {
           this.elements.imageDownloader.checked = settings.imageDownloader !== false;
         }
+        if (this.elements.imageDownloaderButton) {
+          this.elements.imageDownloaderButton.checked = settings.imageDownloaderButton !== false;
+        }
         if (this.elements.historyDeletion) {
           this.elements.historyDeletion.checked = settings.historyDeletion?.enabled || false;
           this.toggleHistoryConfig(settings.historyDeletion?.enabled || false);
@@ -226,6 +232,12 @@ class OptionsController {
     if (this.elements.imageDownloader) {
       this.elements.imageDownloader.addEventListener('change', (e) => {
         this.handleFeatureToggle('imageDownloader', e);
+      });
+    }
+    
+    if (this.elements.imageDownloaderButton) {
+      this.elements.imageDownloaderButton.addEventListener('change', (e) => {
+        this.handleFeatureToggle('imageDownloaderButton', e);
       });
     }
     
@@ -343,7 +355,7 @@ class OptionsController {
     }
   }
 
-  private async handleFeatureToggle(feature: 'freediumFeature' | 'jsonViewer' | 'imageDownloader', event: Event): Promise<void> {
+  private async handleFeatureToggle(feature: 'freediumFeature' | 'jsonViewer' | 'imageDownloader' | 'imageDownloaderButton', event: Event): Promise<void> {
     const target = event.target as HTMLInputElement;
     const enabled = target.checked;
     
@@ -367,11 +379,12 @@ class OptionsController {
       case 'freediumFeature': return 'Medium Freedium Redirect';
       case 'jsonViewer': return 'JSON Viewer';
       case 'imageDownloader': return 'Image Downloader';
+      case 'imageDownloaderButton': return 'Floating Image Downloader Button';
       default: return feature;
     }
   }
 
-  private async notifyContentScripts(feature: 'freediumFeature' | 'jsonViewer' | 'imageDownloader', enabled: boolean): Promise<void> {
+  private async notifyContentScripts(feature: 'freediumFeature' | 'jsonViewer' | 'imageDownloader' | 'imageDownloaderButton', enabled: boolean): Promise<void> {
     try {
       // Get all tabs
       const tabs = await chrome.tabs.query({});
