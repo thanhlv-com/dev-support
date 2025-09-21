@@ -6,7 +6,7 @@ import ProxyManager from './features/proxy/ProxyManager';
 import { StorageManager } from './features/storage-manager/StorageManager';
 
 interface ExtensionMessage extends ChromeMessage {
-  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection' | 'exportStorage' | 'importStorage' | 'clearStorage' | 'getStorageCount' | 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount' | 'downloadImages';
+  action: 'trackEvent' | 'getSettings' | 'saveSettings' | 'captureScreen' | 'deleteHistory' | 'deleteHistoryNow' | 'getHistoryStats' | 'getProxyConfig' | 'saveProxyConfig' | 'testProxyConnection' | 'exportStorage' | 'importStorage' | 'clearStorage' | 'getStorageCount' | 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount';
   event?: string;
   data?: any;
   settings?: ExtensionSettings;
@@ -19,7 +19,6 @@ interface ExtensionMessage extends ChromeMessage {
   tabId?: number;
   storageData?: StorageExport;
   cookieData?: CookieExport;
-  images?: ImageInfo[];
 }
 
 interface ExtensionResponse {
@@ -212,12 +211,6 @@ class ExtensionBackgroundController {
           }
           break;
 
-        case 'downloadImages':
-          if (message.images) {
-            this.handleDownloadImages(message.images, sendResponse);
-            return true; // Keep message channel open for async response
-          }
-          break;
       }
     });
   }
@@ -1450,67 +1443,6 @@ class ExtensionBackgroundController {
     }
   }
 
-  // Image download handler
-  private async handleDownloadImages(images: ImageInfo[], sendResponse: (response: ExtensionResponse) => void): Promise<void> {
-    try {
-      console.log('📸 [BACKGROUND] Starting bulk image download:', images.length, 'images');
-      
-      let downloadedCount = 0;
-      let failedCount = 0;
-      const errors: string[] = [];
-
-      // Download images sequentially with rate limiting
-      for (const image of images) {
-        try {
-          // Use Chrome's download API
-          const downloadId = await chrome.downloads.download({
-            url: image.url,
-            filename: `images/${image.filename}`, // Put in images folder
-            saveAs: false // Don't show save dialog
-          });
-          
-          downloadedCount++;
-          console.log(`✅ [BACKGROUND] Downloaded: ${image.filename} (ID: ${downloadId})`);
-          
-          // Add small delay to avoid overwhelming the download system
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-        } catch (error) {
-          failedCount++;
-          const errorMsg = `Failed to download ${image.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-          errors.push(errorMsg);
-          console.error(`❌ [BACKGROUND] ${errorMsg}`);
-        }
-      }
-
-      console.log(`✅ [BACKGROUND] Bulk download completed: ${downloadedCount} successful, ${failedCount} failed`);
-
-      sendResponse({
-        success: true,
-        data: {
-          total: images.length,
-          completed: downloadedCount,
-          failed: failedCount,
-          errors
-        }
-      });
-
-      // Track the event
-      this.handleTrackEvent('images_downloaded', {
-        total: images.length,
-        completed: downloadedCount,
-        failed: failedCount,
-        timestamp: Date.now()
-      });
-
-    } catch (error) {
-      console.error('❌ [BACKGROUND] Error handling bulk image download:', error);
-      sendResponse({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
 }
 
 // Initialize background controller

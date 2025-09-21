@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+// @ts-ignore
+import JSZip from 'jszip';
 
 interface StatusElements {
   currentUrl: string;
@@ -295,31 +297,125 @@ const PopupApp: React.FC = () => {
         return;
       }
 
-      setImageDownloadStatus({ message: `Downloading ${images.length} images...`, type: 'loading' });
+      setImageDownloadStatus({ message: `Creating zip with ${images.length} images...`, type: 'loading' });
 
-      // Send to background script for download
-      const response = await chrome.runtime.sendMessage({
-        action: 'downloadImages',
-        images: images
-      });
-
-      if (response.success) {
-        const { completed, failed, total } = response.data;
-        setImageDownloadStatus({ 
-          message: `Downloaded ${completed}/${total} images${failed > 0 ? ` (${failed} failed)` : ''}`, 
-          type: 'success' 
-        });
-        setTimeout(() => setImageDownloadStatus(null), 4000);
-      } else {
-        setImageDownloadStatus({ message: response.error || 'Download failed', type: 'error' });
-        setTimeout(() => setImageDownloadStatus(null), 3000);
-      }
+      // Create zip file with all images
+      await downloadImagesAsZip(images);
 
     } catch (error) {
       console.error('Image download error:', error);
       setImageDownloadStatus({ message: 'Failed to download images', type: 'error' });
       setTimeout(() => setImageDownloadStatus(null), 3000);
     }
+  };
+
+  const downloadImagesAsZip = async (images: any[]) => {
+    try {
+      console.log('📦 Creating zip file with', images.length, 'images...');
+      
+      // Create a new JSZip instance
+      const zip = new JSZip();
+      
+      let downloadedCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      // Download each image and add to zip
+      for (const image of images) {
+        try {
+          // Update progress
+          setImageDownloadStatus({ 
+            message: `Adding image ${downloadedCount + 1}/${images.length} to zip...`, 
+            type: 'loading' 
+          });
+
+          console.log(`📥 Downloading image: ${image.filename}`);
+          
+          // Fetch the image
+          const response = await fetch(image.url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          
+          // Add to zip with a clean filename
+          const cleanFilename = sanitizeFilename(image.filename);
+          zip.file(cleanFilename, blob);
+          
+          downloadedCount++;
+          console.log(`✅ Added to zip: ${cleanFilename}`);
+          
+        } catch (error) {
+          failedCount++;
+          const errorMsg = `Failed to download ${image.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+
+      if (downloadedCount === 0) {
+        throw new Error('No images were successfully downloaded');
+      }
+
+      setImageDownloadStatus({ message: 'Generating zip file...', type: 'loading' });
+      
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      // Create download link
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+      const filename = `images-${timestamp}.zip`;
+
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = zipUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      setTimeout(() => {
+        URL.revokeObjectURL(zipUrl);
+      }, 1000);
+
+      console.log(`✅ Zip download completed: ${filename} (${downloadedCount} images, ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB)`);
+      
+      setImageDownloadStatus({ 
+        message: `Zip created! ${downloadedCount} images included${failedCount > 0 ? ` (${failedCount} failed)` : ''}`, 
+        type: 'success' 
+      });
+      setTimeout(() => setImageDownloadStatus(null), 4000);
+
+    } catch (error) {
+      console.error('Zip creation error:', error);
+      setImageDownloadStatus({ message: error instanceof Error ? error.message : 'Failed to create zip', type: 'error' });
+      setTimeout(() => setImageDownloadStatus(null), 3000);
+    }
+  };
+
+  const sanitizeFilename = (filename: string): string => {
+    // Remove or replace invalid characters for zip files
+    let sanitized = filename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    
+    // Ensure filename doesn't start with dot or dash
+    if (sanitized.startsWith('.') || sanitized.startsWith('-')) {
+      sanitized = 'image_' + sanitized;
+    }
+    
+    // Ensure filename is not empty
+    if (!sanitized || sanitized.trim() === '') {
+      sanitized = `image_${Date.now()}.jpg`;
+    }
+    
+    return sanitized;
   };
 
   const openSettings = () => {
@@ -370,7 +466,7 @@ const PopupApp: React.FC = () => {
                 onClick={handleImageDownload}
                 disabled={!!imageDownloadStatus}
               >
-                <span>📥 Download All Images</span>
+                <span>📦 Download Images as Zip</span>
               </button>
             </div>
             {imageDownloadStatus && (
@@ -380,7 +476,7 @@ const PopupApp: React.FC = () => {
             )}
             <div className="image-info">
               <small className="image-info-text">
-                Downloads all images from the current page (≥32px) to your Downloads/images folder
+                Downloads all images from the current page (≥32px) as a single zip file
               </small>
             </div>
           </div>
