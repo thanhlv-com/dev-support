@@ -1,4 +1,6 @@
 // Image Downloader Feature for Dev Support Extension
+// @ts-ignore
+import JSZip from 'jszip';
 
 export interface ImageInfo {
   url: string;
@@ -106,7 +108,7 @@ export class ImageDownloader {
   }
 
   /**
-   * Download all collected images
+   * Download all collected images as a zip file
    */
   public async downloadAllImages(images: ImageInfo[], onProgress?: (progress: DownloadProgress) => void): Promise<DownloadProgress> {
     if (this.downloadInProgress) {
@@ -116,26 +118,100 @@ export class ImageDownloader {
     this.downloadInProgress = true;
 
     try {
-      // Send message to background script to handle downloads
-      const response = await chrome.runtime.sendMessage({
-        action: 'downloadImages',
-        images: images
-      });
+      console.log('📦 Creating zip file with', images.length, 'images...');
+      
+      // Create a new JSZip instance
+      const zip = new JSZip();
+      
+      let downloadedCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to start download');
+      // Download each image and add to zip
+      for (const image of images) {
+        try {
+          // Update progress
+          if (onProgress) {
+            onProgress({
+              total: images.length,
+              completed: downloadedCount,
+              failed: failedCount,
+              errors: [...errors]
+            });
+          }
+
+          console.log(`📥 Downloading image: ${image.filename}`);
+          
+          // Fetch the image
+          const response = await fetch(image.url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          
+          // Add to zip with a clean filename
+          const cleanFilename = this.sanitizeFilename(image.filename);
+          zip.file(cleanFilename, blob);
+          
+          downloadedCount++;
+          console.log(`✅ Added to zip: ${cleanFilename}`);
+          
+        } catch (error) {
+          failedCount++;
+          const errorMsg = `Failed to download ${image.filename}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
       }
 
-      // Return the progress from background script
-      const progress: DownloadProgress = {
-        total: response.data.total,
-        completed: response.data.completed,
-        failed: response.data.failed,
-        errors: response.data.errors || []
+      // Update final progress
+      const finalProgress: DownloadProgress = {
+        total: images.length,
+        completed: downloadedCount,
+        failed: failedCount,
+        errors
       };
 
-      console.log(`✅ Download completed: ${progress.completed} successful, ${progress.failed} failed`);
-      return progress;
+      if (onProgress) {
+        onProgress(finalProgress);
+      }
+
+      if (downloadedCount === 0) {
+        throw new Error('No images were successfully downloaded');
+      }
+
+      console.log('📦 Generating zip file...');
+      
+      // Generate zip file
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      // Create download link
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+      const filename = `images-${timestamp}.zip`;
+
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = zipUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      setTimeout(() => {
+        URL.revokeObjectURL(zipUrl);
+      }, 1000);
+
+      console.log(`✅ Zip download completed: ${filename} (${downloadedCount} images, ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB)`);
+      
+      return finalProgress;
 
     } finally {
       this.downloadInProgress = false;
@@ -168,6 +244,31 @@ export class ImageDownloader {
     } catch {
       return `image_${Date.now()}.jpg`;
     }
+  }
+
+  /**
+   * Sanitize filename for zip archive
+   */
+  private sanitizeFilename(filename: string): string {
+    // Remove or replace invalid characters for zip files
+    let sanitized = filename.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+    
+    // Ensure filename doesn't start with dot or dash
+    if (sanitized.startsWith('.') || sanitized.startsWith('-')) {
+      sanitized = 'image_' + sanitized;
+    }
+    
+    // Ensure filename is not empty
+    if (!sanitized || sanitized.trim() === '') {
+      sanitized = `image_${Date.now()}.jpg`;
+    }
+    
+    // Handle duplicate filenames by adding a counter
+    const parts = sanitized.split('.');
+    const extension = parts.length > 1 ? parts.pop() : 'jpg';
+    const baseName = parts.join('.');
+    
+    return `${baseName}.${extension}`;
   }
 
   /**
@@ -283,13 +384,13 @@ export class ImageDownloader {
     const container = document.createElement('div');
     container.id = 'dev-support-image-downloader';
     container.innerHTML = `
-      <div class="image-downloader-button" title="Download All Images">
+      <div class="image-downloader-button" title="Download All Images as Zip File">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        <span class="downloader-text">Images</span>
+        <span class="downloader-text">Zip All</span>
       </div>
     `;
 
@@ -483,7 +584,7 @@ export class ImageDownloader {
       }
 
       // Confirm download
-      const confirmMessage = `Found ${images.length} images. Do you want to download all of them?`;
+      const confirmMessage = `Found ${images.length} images. Do you want to download them as a zip file?`;
       if (!confirm(confirmMessage)) {
         this.hideProgressOverlay();
         return;
@@ -497,7 +598,7 @@ export class ImageDownloader {
       // Show results
       setTimeout(() => {
         this.hideProgressOverlay();
-        const message = `Download completed!\n✅ ${progress.completed} successful\n❌ ${progress.failed} failed`;
+        const message = `Zip file created and downloaded!\n✅ ${progress.completed} images included\n❌ ${progress.failed} failed`;
         alert(message);
       }, 1000);
 
@@ -521,11 +622,11 @@ export class ImageDownloader {
     overlay.id = 'image-downloader-progress';
     overlay.className = 'image-downloader-progress';
     overlay.innerHTML = `
-      <div>📸 Collecting images...</div>
+      <div>📦 Creating zip file...</div>
       <div class="progress-bar">
         <div class="progress-fill" style="width: 0%"></div>
       </div>
-      <div class="progress-text">Preparing download...</div>
+      <div class="progress-text">Preparing images...</div>
     `;
 
     document.body.appendChild(overlay);
@@ -547,7 +648,7 @@ export class ImageDownloader {
     }
 
     if (progressText) {
-      progressText.textContent = `${progress.completed}/${progress.total} images downloaded`;
+      progressText.textContent = `${progress.completed}/${progress.total} images added to zip`;
     }
   }
 
