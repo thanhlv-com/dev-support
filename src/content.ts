@@ -29,8 +29,7 @@ class ContentScriptManager {
     this.features = {
       freediumFeature: false,
       jsonViewer: true,
-      imageDownloader: true,
-      imageDownloaderButton: true
+      imageDownloader: true
     };
     
     this.init();
@@ -51,11 +50,10 @@ class ContentScriptManager {
 
   private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'imageDownloaderButton']) as ChromeStorageResult;
+      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader']) as ChromeStorageResult;
       this.features.freediumFeature = result.freediumFeature !== false; // Default to true
       this.features.jsonViewer = result.jsonViewer !== false; // Default to true
       this.features.imageDownloader = result.imageDownloader !== false; // Default to true
-      this.features.imageDownloaderButton = result.imageDownloaderButton !== false; // Default to true
       
       console.log('📋 Loaded feature states:', this.features);
     } catch (error) {
@@ -64,7 +62,6 @@ class ContentScriptManager {
       this.features.freediumFeature = true;
       this.features.jsonViewer = true;
       this.features.imageDownloader = true;
-      this.features.imageDownloaderButton = true;
     }
   }
 
@@ -109,7 +106,7 @@ class ContentScriptManager {
     }
 
     // Image Downloader feature (floating button)
-    if (this.features.imageDownloader && this.features.imageDownloaderButton && this.canUseImageDownloader()) {
+    if (this.features.imageDownloader && this.canUseImageDownloader()) {
       this.initImageDownloader();
     } else {
       this.removeImageDownloader();

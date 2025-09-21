@@ -51,7 +51,6 @@ declare global {
     freediumFeature: boolean;
     jsonViewer: boolean;
     imageDownloader: boolean;
-    imageDownloaderButton: boolean;
     historyDeletion: HistoryDeletionConfig;
   }
 
@@ -101,7 +100,6 @@ declare global {
     freediumFeature: boolean;
     jsonViewer: boolean;
     imageDownloader: boolean;
-    imageDownloaderButton: boolean;
     [featureName: string]: boolean;
   }
 
