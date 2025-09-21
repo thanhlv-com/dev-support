@@ -22,6 +22,7 @@ const PopupApp: React.FC = () => {
   const [storageData, setStorageData] = useState<StorageData | null>(null);
   const [captureStatus, setCaptureStatus] = useState<{ message: string; type: 'loading' | 'success' | 'error' } | null>(null);
   const [currentTab, setCurrentTab] = useState<chrome.tabs.Tab | null>(null);
+  const [imageDownloadStatus, setImageDownloadStatus] = useState<{ message: string; type: 'loading' | 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadCurrentTab();
@@ -61,11 +62,12 @@ const PopupApp: React.FC = () => {
 
   const updateActiveCount = async () => {
     try {
-      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'historyDeletion']);
+      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader', 'historyDeletion']);
       
       let count = 0;
       if (result.freediumFeature !== false) count++;
       if (result.jsonViewer !== false) count++;
+      if (result.imageDownloader !== false) count++;
       if (result.historyDeletion?.enabled) count++;
       
       setStatus(prev => ({
@@ -243,6 +245,83 @@ const PopupApp: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleImageDownload = async () => {
+    try {
+      if (!currentTab?.id) {
+        setImageDownloadStatus({ message: 'No active tab found', type: 'error' });
+        return;
+      }
+
+      setImageDownloadStatus({ message: 'Collecting images...', type: 'loading' });
+
+      // Inject script to collect images from the current page
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: currentTab.id },
+        func: () => {
+          // This runs in the page context
+          const images = new Set<string>();
+          const imageInfos: any[] = [];
+
+          // Collect from IMG tags
+          const imgElements = document.querySelectorAll('img');
+          imgElements.forEach((img) => {
+            if (img.src && !images.has(img.src)) {
+              images.add(img.src);
+              const filename = img.src.split('/').pop()?.split('?')[0] || `image_${Date.now()}.jpg`;
+              imageInfos.push({
+                url: img.src,
+                filename: filename.replace(/[^a-zA-Z0-9.-]/g, '_'),
+                width: img.naturalWidth || img.width,
+                height: img.naturalHeight || img.height
+              });
+            }
+          });
+
+          // Filter out small icons (less than 32x32)
+          const filteredImages = imageInfos.filter(img => {
+            const { width = 0, height = 0 } = img;
+            return width >= 32 || height >= 32 || (width === 0 && height === 0);
+          });
+
+          return filteredImages;
+        }
+      });
+
+      const images = results[0]?.result || [];
+
+      if (images.length === 0) {
+        setImageDownloadStatus({ message: 'No images found on this page', type: 'error' });
+        setTimeout(() => setImageDownloadStatus(null), 3000);
+        return;
+      }
+
+      setImageDownloadStatus({ message: `Downloading ${images.length} images...`, type: 'loading' });
+
+      // Send to background script for download
+      const response = await chrome.runtime.sendMessage({
+        action: 'downloadImages',
+        images: images
+      });
+
+      if (response.success) {
+        const { completed, failed, total } = response.data;
+        setImageDownloadStatus({ 
+          message: `Downloaded ${completed}/${total} images${failed > 0 ? ` (${failed} failed)` : ''}`, 
+          type: 'success' 
+        });
+        setTimeout(() => setImageDownloadStatus(null), 4000);
+      } else {
+        setImageDownloadStatus({ message: response.error || 'Download failed', type: 'error' });
+        setTimeout(() => setImageDownloadStatus(null), 3000);
+      }
+
+    } catch (error) {
+      console.error('Image download error:', error);
+      setImageDownloadStatus({ message: 'Failed to download images', type: 'error' });
+      setTimeout(() => setImageDownloadStatus(null), 3000);
+    }
+  };
+
   const openSettings = () => {
     chrome.runtime.openOptionsPage();
   };
@@ -280,6 +359,30 @@ const PopupApp: React.FC = () => {
                 <span className="capture-status-text">{captureStatus.message}</span>
               </div>
             )}
+          </div>
+
+          {/* Image Download Section */}
+          <div className="image-section">
+            <h2>📸 Image Download</h2>
+            <div className="image-actions">
+              <button 
+                className="btn image-btn image-btn--primary"
+                onClick={handleImageDownload}
+                disabled={!!imageDownloadStatus}
+              >
+                <span>📥 Download All Images</span>
+              </button>
+            </div>
+            {imageDownloadStatus && (
+              <div className={`image-status image-status--${imageDownloadStatus.type}`}>
+                <span className="image-status-text">{imageDownloadStatus.message}</span>
+              </div>
+            )}
+            <div className="image-info">
+              <small className="image-info-text">
+                Downloads all images from the current page (≥32px) to your Downloads/images folder
+              </small>
+            </div>
           </div>
           
           {/* Storage Management Section */}

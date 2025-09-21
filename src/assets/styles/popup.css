@@ -155,6 +155,7 @@ body {
 /* Beautiful Section Cards */
 .admin-section,
 .action-section,
+.image-section,
 .storage-section,
 .quick-section,
 .status-section {
@@ -172,6 +173,7 @@ body {
 
 .admin-section::before,
 .action-section::before,
+.image-section::before,
 .storage-section::before,
 .quick-section::before,
 .status-section::before {
@@ -187,6 +189,7 @@ body {
 
 .admin-section:hover,
 .action-section:hover,
+.image-section:hover,
 .storage-section:hover,
 .quick-section:hover,
 .status-section:hover {
@@ -197,6 +200,7 @@ body {
 
 .admin-section h2,
 .action-section h2,
+.image-section h2,
 .storage-section h2,
 .quick-section h2,
 .status-section h2 {
@@ -298,6 +302,7 @@ body {
 
 /* Button variants */
 .action-btn,
+.image-btn,
 .storage-btn,
 .quick-btn {
   width: 100%;
@@ -305,6 +310,7 @@ body {
 }
 
 .action-btn:last-child,
+.image-btn:last-child,
 .storage-btn:last-child,
 .quick-btn:last-child {
   margin-bottom: 0;
@@ -357,6 +363,33 @@ body {
     0 16px 48px rgba(16, 185, 129, 0.6),
     0 8px 24px rgba(6, 182, 212, 0.4),
     0 0 32px rgba(59, 130, 246, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  animation: gradientShift 3s ease infinite reverse;
+}
+
+/* Image buttons with green gradient */
+.image-btn--primary {
+  background: linear-gradient(145deg, #10b981 0%, #059669 50%, #047857 100%);
+  background-size: 300% 300%;
+  color: white;
+  box-shadow: 
+    0 8px 32px rgba(16, 185, 129, 0.4),
+    0 4px 16px rgba(5, 150, 105, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  animation: gradientShift 6s ease infinite;
+}
+
+.image-btn--primary:not(:disabled):hover {
+  background: linear-gradient(145deg, #059669 0%, #047857 50%, #065f46 100%);
+  background-size: 300% 300%;
+  box-shadow: 
+    0 16px 48px rgba(16, 185, 129, 0.6),
+    0 8px 24px rgba(5, 150, 105, 0.4),
+    0 0 32px rgba(4, 120, 87, 0.3),
     inset 0 2px 0 rgba(255, 255, 255, 0.4),
     inset 0 -2px 0 rgba(0, 0, 0, 0.2);
   border-color: rgba(255, 255, 255, 0.4);
@@ -488,6 +521,7 @@ body {
 }
 
 /* Beautiful Info Boxes */
+.image-info,
 .storage-info,
 .quick-info {
   background: var(--glass-bg);
@@ -639,6 +673,56 @@ body {
 }
 
 .capture-status--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+}
+
+/* Image Status (using same styles as capture status) */
+.image-status {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.image-status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.8s ease;
+}
+
+.image-status--loading {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+.image-status--loading::before {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.image-status--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+.image-status--error {
   background: rgba(239, 68, 68, 0.15);
   color: var(--accent-danger);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -799,12 +883,14 @@ body {
   }
 }
 
-.capture-status {
+.capture-status,
+.image-status {
   animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .admin-section,
 .action-section,
+.image-section,
 .storage-section,
 .quick-section,
 .status-section {
@@ -812,9 +898,10 @@ body {
 }
 
 .action-section { animation-delay: 0.1s; }
-.storage-section { animation-delay: 0.2s; }
-.quick-section { animation-delay: 0.3s; }
-.status-section { animation-delay: 0.4s; }
+.image-section { animation-delay: 0.2s; }
+.storage-section { animation-delay: 0.3s; }
+.quick-section { animation-delay: 0.4s; }
+.status-section { animation-delay: 0.5s; }
 
 /* Responsive adjustments */
 @media (max-width: 440px) {
@@ -833,6 +920,7 @@ body {
   
   .admin-section,
   .action-section,
+  .image-section,
   .storage-section,
   .quick-section,
   .status-section {

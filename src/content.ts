@@ -3,6 +3,7 @@
 /// <reference path="types/global.d.ts" />
 
 import { JsonViewer } from './features/json-viewer/JsonViewer';
+import { ImageDownloader } from './features/image-downloader/ImageDownloader';
 
 interface ContentScriptMessage extends ChromeMessage {
   action: 'toggleFeature';
@@ -21,11 +22,14 @@ class ContentScriptManager {
   private freediumButton: HTMLDivElement | null = null;
   private styleElement: HTMLStyleElement | null = null;
   private jsonViewer: JsonViewer | null = null;
+  private imageDownloader: ImageDownloader | null = null;
+  private imageDownloaderUI: HTMLElement | null = null;
 
   constructor() {
     this.features = {
       freediumFeature: false,
-      jsonViewer: true
+      jsonViewer: true,
+      imageDownloader: true
     };
     
     this.init();
@@ -46,9 +50,10 @@ class ContentScriptManager {
 
   private async loadFeatureStates(): Promise<void> {
     try {
-      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer']) as ChromeStorageResult;
+      const result = await chrome.storage.sync.get(['freediumFeature', 'jsonViewer', 'imageDownloader']) as ChromeStorageResult;
       this.features.freediumFeature = result.freediumFeature !== false; // Default to true
       this.features.jsonViewer = result.jsonViewer !== false; // Default to true
+      this.features.imageDownloader = result.imageDownloader !== false; // Default to true
       
       console.log('📋 Loaded feature states:', this.features);
     } catch (error) {
@@ -56,6 +61,7 @@ class ContentScriptManager {
       // Use defaults
       this.features.freediumFeature = true;
       this.features.jsonViewer = true;
+      this.features.imageDownloader = true;
     }
   }
 
@@ -97,6 +103,13 @@ class ContentScriptManager {
       this.initJsonViewer();
     } else {
       this.removeJsonViewer();
+    }
+
+    // Image Downloader feature
+    if (this.features.imageDownloader && this.canUseImageDownloader()) {
+      this.initImageDownloader();
+    } else {
+      this.removeImageDownloader();
     }
   }
 
@@ -761,6 +774,46 @@ class ContentScriptManager {
         }
       }
     `;
+  }
+
+  // Image Downloader feature methods
+  private canUseImageDownloader(): boolean {
+    // Enable on all web pages except specific exclusions
+    const hostname = window.location.hostname;
+    const excludedDomains = ['chrome-extension:', 'chrome:', 'about:', 'moz-extension:'];
+    
+    return !excludedDomains.some(domain => window.location.protocol.startsWith(domain.replace(':', ''))) &&
+           hostname !== '' && 
+           !this.isJsonPage(); // Don't show on JSON pages as they won't have images
+  }
+
+  private initImageDownloader(): void {
+    console.log('📸 Initializing Image Downloader feature');
+    
+    // Remove existing UI if any
+    this.removeImageDownloader();
+    
+    // Initialize the image downloader
+    this.imageDownloader = ImageDownloader.getInstance();
+    
+    // Create and add UI
+    this.imageDownloaderUI = this.imageDownloader.createDownloadUI();
+    document.body.appendChild(this.imageDownloaderUI);
+    
+    console.log('✨ Image Downloader initialized');
+  }
+
+  private removeImageDownloader(): void {
+    if (this.imageDownloaderUI) {
+      this.imageDownloaderUI.remove();
+      this.imageDownloaderUI = null;
+      console.log('🗑️ Removed Image Downloader UI');
+    }
+
+    if (this.imageDownloader) {
+      this.imageDownloader.removeDownloaderUI();
+      this.imageDownloader = null;
+    }
   }
 }
 

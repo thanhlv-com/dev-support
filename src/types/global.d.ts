@@ -50,6 +50,7 @@ declare global {
   interface FeatureSettings {
     freediumFeature: boolean;
     jsonViewer: boolean;
+    imageDownloader: boolean;
     historyDeletion: HistoryDeletionConfig;
   }
 
@@ -98,6 +99,7 @@ declare global {
   interface FeatureState {
     freediumFeature: boolean;
     jsonViewer: boolean;
+    imageDownloader: boolean;
     [featureName: string]: boolean;
   }
 
@@ -167,6 +169,28 @@ declare global {
     action: 'exportCookies' | 'importCookies' | 'clearCookies' | 'getCookieCount';
     url?: string;
     cookieData?: CookieExport;
+  }
+
+  // Image downloader types
+  interface ImageInfo {
+    url: string;
+    filename: string;
+    size?: number;
+    width?: number;
+    height?: number;
+    type?: string;
+  }
+
+  interface DownloadProgress {
+    total: number;
+    completed: number;
+    failed: number;
+    errors: string[];
+  }
+
+  interface ImageDownloadMessage extends ChromeMessage {
+    action: 'downloadImages';
+    images: ImageInfo[];
   }
 }
 
