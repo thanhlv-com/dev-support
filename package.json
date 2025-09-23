@@ -1,6 +1,6 @@
 {
   "name": "dev-support-extension",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A powerful Chrome extension for developer productivity and support",
   "main": "background.js",
   "scripts": {
