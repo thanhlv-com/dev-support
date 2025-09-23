@@ -1,6 +1,6 @@
 {
   "name": "dev-support-extension",
-  "version": "2.0.1",
+  "version": "2.0.0",
   "description": "A powerful Chrome extension for developer productivity and support",
   "main": "background.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "watch": "webpack --mode=development --watch",
     "clean": "rimraf dist",
     "package": "npm run clean && npm run build && npm run zip",
-    "zip": "cd dist && zip -r ../dev-support-extension-v2.0.0.zip .",
+    "zip": "cd dist && zip -r ../dev-support-extension.zip .",
     "lint": "eslint src --ext .ts,.js",
     "lint:fix": "eslint src --ext .ts,.js --fix",
     "type-check": "tsc --noEmit",
